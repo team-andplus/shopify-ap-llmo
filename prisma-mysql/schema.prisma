@@ -1,10 +1,10 @@
-// ローカル開発用: SQLite（DB 不要で即動く）。本番は prisma-mysql を使用。
+// 本番用: MySQL（schemabridge と同様）。デプロイ時に setup:prod で使用。
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 

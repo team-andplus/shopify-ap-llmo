@@ -1,13 +1,25 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, Outlet, useLoaderData, useRouteError } from "react-router";
+import { Link, Outlet, useLoaderData, useRouteError, redirect } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
+import { getAppRedirectBase } from "../lib/redirect-url.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const apiKey = process.env.SHOPIFY_API_KEY ?? "";
-  return { apiKey, shop: session?.shop ?? "" };
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  console.log("[ap-llmo] app layout loader:", url.pathname, shop ?? "");
+  try {
+    const { session } = await authenticate.admin(request);
+    const apiKey = process.env.SHOPIFY_API_KEY ?? "";
+    return { apiKey, shop: session?.shop ?? "" };
+  } catch (err) {
+    console.error("[ap-llmo] app layout loader error:", err);
+    // 認証失敗時は 403 ではなく /auth へリダイレクト（再ログインで解消するため）
+    const base = getAppRedirectBase(request);
+    const search = url.search;
+    throw redirect(`${base}/auth${search ? (search.startsWith("?") ? search : `?${search}`) : shop ? `?shop=${shop}` : ""}`);
+  }
 };
 
 export default function AppLayout() {

@@ -1,22 +1,20 @@
--- CreateTable (MySQL). Session のみ（schemabridge の Session と同様）
-CREATE TABLE `Session` (
-    `id` VARCHAR(191) NOT NULL,
-    `shop` VARCHAR(191) NOT NULL,
-    `state` VARCHAR(191) NOT NULL,
-    `isOnline` BOOLEAN NOT NULL DEFAULT false,
-    `scope` VARCHAR(191) NULL,
-    `expires` DATETIME(3) NULL,
-    `accessToken` VARCHAR(191) NOT NULL,
-    `userId` BIGINT NULL,
-    `firstName` VARCHAR(191) NULL,
-    `lastName` VARCHAR(191) NULL,
-    `email` VARCHAR(191) NULL,
-    `accountOwner` BOOLEAN NOT NULL DEFAULT false,
-    `locale` VARCHAR(191) NULL,
-    `collaborator` BOOLEAN NULL,
-    `emailVerified` BOOLEAN NULL,
-    `refreshToken` VARCHAR(191) NULL,
-    `refreshTokenExpires` DATETIME(3) NULL,
-
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- CreateTable (SQLite). ローカル開発用。
+CREATE TABLE "Session" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shop" TEXT NOT NULL,
+    "state" TEXT NOT NULL,
+    "isOnline" INTEGER NOT NULL DEFAULT 0,
+    "scope" TEXT,
+    "expires" DATETIME,
+    "accessToken" TEXT NOT NULL,
+    "userId" INTEGER,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "email" TEXT,
+    "accountOwner" INTEGER NOT NULL DEFAULT 0,
+    "locale" TEXT,
+    "collaborator" INTEGER,
+    "emailVerified" INTEGER,
+    "refreshToken" TEXT,
+    "refreshTokenExpires" DATETIME
+);

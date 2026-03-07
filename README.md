@@ -78,10 +78,11 @@ cp .env.example ../common/shopify-ap-llmo.env
 # または開発だけなら直下に
 cp .env.example .env
 
-# .env を編集: SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SCOPES, DATABASE_URL（MySQL）
+# .env を編集: SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SCOPES
+# DATABASE_URL は .env.example のまま（SQLite）でよい。MySQL は不要。
 
-# DB 初期化（MySQL で DB 作成済みの前提）
-npx prisma generate && npx prisma migrate deploy
+# DB 初期化（ローカルは SQLite。ファイルが自動作成される）
+npm run setup
 ```
 
 ### 開発サーバー
@@ -99,7 +100,7 @@ npm run build:prod   # 本番 URL でビルド
 npm run deploy       # Shopify に extension と app をデプロイ
 ```
 
-本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL 接続先を指定する（schemabridge と同様）。
+本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL を指定。ビルド・DB マイグレーションは `npm run setup:prod`（prisma-mysql 使用）で実行する。
 
 ### 構成
 
