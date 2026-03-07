@@ -93,6 +93,39 @@ npm run dev
 
 Shopify CLI がトンネル URL を表示するので、表示された URL を Partners のアプリ設定の「アプリ URL」「リダイレクト URL」に設定する（`automatically_update_urls_on_dev` を true にすれば自動更新も可）。
 
+### 403 が続くとき（ローカル）
+
+**インストール画面までは行けたが、インストール後に 403** になる場合、管理画面の iframe が **本番 URL**（`https://apps.andplus.tech/...`）を読みに行っている可能性が高い。本番は未起動のため 403 になる。
+
+- **対処**: `shopify.app.toml` の `automatically_update_urls_on_dev = true` にしておく。`npm run dev` 起動時に Partners の「アプリ URL」「リダイレクト URL」が**トンネル URL（または localhost）**に自動更新され、インストール後もローカルのアプリが開く。
+- すでに dev を起動している場合は、一度止めてから `npm run dev` を再実行し、表示された URL が Partners に反映されているか確認する。
+
+---
+
+埋め込みアプリで 403 になる他の原因として、**CLI のトンネル**がブロックしている場合がある。次を順に試す。
+
+1. **URL リセット**  
+   ```bash
+   npm run dev -- --reset
+   ```  
+   表示された新しい URL を Partners に再設定してからアプリを開き直す。
+
+2. **localhost で開く**（トンネルを使わない）  
+   ```bash
+   npm run dev:localhost
+   ```  
+   ブラウザで表示された URL（`https://localhost:...`）を Partners のアプリ URL に設定。証明書の警告が出たら「詳細」→「安全でなくても開く」で進む。
+
+3. **ngrok を使う**  
+   ngrok を別ターミナルで起動し、  
+   ```bash
+   npm run dev -- --tunnel-url https://あなたのngrokのURL
+   ```  
+   Partners のアプリ URL をその ngrok URL に設定。
+
+4. **Cloudflare の設定と競合している場合**  
+   `~/.cloudflared/config.yaml` があると CLI のトンネルと競合することがある。一時的にリネームしてから `npm run dev` を試す。
+
 ### ビルド・デプロイ
 
 ```bash
