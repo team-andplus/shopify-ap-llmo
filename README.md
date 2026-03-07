@@ -95,10 +95,13 @@ Shopify CLI がトンネル URL を表示するので、表示された URL を 
 
 ### 403 が続くとき（ローカル）
 
-**インストール画面までは行けたが、インストール後に 403** になる場合、管理画面の iframe が **本番 URL**（`https://apps.andplus.tech/...`）を読みに行っている可能性が高い。本番は未起動のため 403 になる。
+**インストール画面までは行けたが、インストール後に 403** になる場合、管理画面の iframe が **本番 URL**（`https://apps.andplus.tech/...`）を読みに行っている。本番は未起動のため 403 になる。
 
-- **対処**: `shopify.app.toml` の `automatically_update_urls_on_dev = true` にしておく。`npm run dev` 起動時に Partners の「アプリ URL」「リダイレクト URL」が**トンネル URL（または localhost）**に自動更新され、インストール後もローカルのアプリが開く。
-- すでに dev を起動している場合は、一度止めてから `npm run dev` を再実行し、表示された URL が Partners に反映されているか確認する。
+- **対処（手動）**: `npm run dev` を起動し、ターミナルに表示される **プレビュー URL**（例: `https://xxx.trycloudflare.com` や `https://localhost:ポート`）をコピーする。Partners の **アプリの設定**（または「バージョン」→ 該当バージョン）で次を**手動で**書き換える:
+  - **アプリ URL**: `https://表示されたトンネルまたはlocalhostのURL/`（末尾スラッシュあり）
+  - **リダイレクト URL**: `https://表示されたURL/auth`（複数ある場合は該当するものを上記に合わせる）
+- 保存後、ストアでアプリを開き直す（または再インストールしてから開く）。ローカルで 403 が解消する。
+- **注意**: 本番デプロイ時や、他の開発者が使う前に、Partners の URL を本番（`https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` と `/auth`）に戻すか、`npm run deploy` で上書きする。
 
 ---
 
