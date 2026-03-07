@@ -1,0 +1,6 @@
+# Theme app extension: LLMO head links (llms.txt, docs/ai)
+api_version = "2024-10"
+
+name = "andplus-llmo"
+uid = "3094c495-da5f-ecfe-06d0-f98beb59aa8c3e26b70d"
+type = "theme"

@@ -1,0 +1,35 @@
+# Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
+# 初回: Shopify Partners でアプリを作成し、client_id を取得して差し替える
+
+client_id = "60ffdc8e1653f4c1fc19d326259a218c"
+name = "AP LLMO"
+application_url = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2026-01"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+[access_scopes]
+scopes = "read_products"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/auth"
+]

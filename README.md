@@ -1,7 +1,7 @@
 # shopify-ap-llmo（LLMO アプリ）
 
 **このディレクトリは「AI向け文書（llms.txt / docs/ai）の head 追加アプリ」用です。**  
-構造化データアプリ（`shopify-ap-schema`）とは別アプリです。
+構造化データアプリ（`shopify-schemabridge`）とは別アプリです。
 
 ---
 
@@ -49,4 +49,83 @@
 
 ---
 
-*（本文書は概要のみ。実装は未着手。）*
+## 開発の始め方
+
+### 前提
+
+- Node.js 20.19+ または 22.12+
+- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli) インストール済み
+- Shopify Partners でアプリを作成し、`shopify.app.toml` の `client_id` を取得済み
+
+### 初回セットアップ
+
+```bash
+cd shopify-ap-llmo
+git submodule update --init --recursive
+ln -s ../_rules/.cursor/rules .cursor/rules   # 共通ルールを使う場合
+
+npm install
+```
+
+**環境変数（.env）**: 並列ディレクトリの **common** に置く想定（schemabridge と同様）。
+
+- 本番: `andplus-apps` と並列の `common/shopify-ap-llmo.env` に置く。`npm run start` が `DOTENV_CONFIG_PATH=../common/shopify-ap-llmo.env` で読む。
+- 開発: プロジェクト直下に `.env` を置くか、`common/shopify-ap-llmo.env` を用意する。`shopify app dev` は直下の `.env` を読む。
+
+```bash
+# 例: common にコピーして編集（本番サーバーで common を共有する場合）
+cp .env.example ../common/shopify-ap-llmo.env
+# または開発だけなら直下に
+cp .env.example .env
+
+# .env を編集: SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SCOPES, DATABASE_URL（MySQL）
+
+# DB 初期化（MySQL で DB 作成済みの前提）
+npx prisma generate && npx prisma migrate deploy
+```
+
+### 開発サーバー
+
+```bash
+npm run dev
+```
+
+Shopify CLI がトンネル URL を表示するので、表示された URL を Partners のアプリ設定の「アプリ URL」「リダイレクト URL」に設定する（`automatically_update_urls_on_dev` を true にすれば自動更新も可）。
+
+### ビルド・デプロイ
+
+```bash
+npm run build:prod   # 本番 URL でビルド
+npm run deploy       # Shopify に extension と app をデプロイ
+```
+
+本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL 接続先を指定する（schemabridge と同様）。
+
+### 構成
+
+- **app/** … React Router + Shopify App（OAuth・webhook・管理画面 1 ページ）
+- **extensions/andplus-llmo-theme/** … Theme app extension。ストアの `<head>` に llms.txt / docs/ai への link を追加するブロック「LLMO head」
+
+### 動かして確認（初回チェック）
+
+「リンクを出す」ところまで動くか確認する手順。
+
+1. **ストアにアプリをインストール**
+   - Partners のアプリから「テストストアを追加」するか、既存ストアの管理画面で「アプリ」→「カスタムアプリを追加」→ 対象アプリをインストール。
+
+2. **テーマで「LLMO head」ブロックを有効にする**
+   - 管理画面で **オンラインストア** → **テーマ** → **カスタマイズ** を開く。
+   - 左の「アプリ」または「アプリの埋め込み」などから **AP LLMO** を選び、**LLMO head** ブロックを追加する（head 用ブロックはテーマによっては「ヘッダー」や「theme.liquid の head」などで追加できる場所が案内される）。
+   - ブロック設定で「LLMO リンクを head に追加する」がオンになっていることを確認し、**保存**。
+
+3. **ストアの `<head>` に link が出力されているか確認**
+   - ストアフロント（トップページなど）をブラウザで開く。
+   - 右クリック → **ページのソースを表示**（または開発者ツールの Elements で `<head>` 内）を開く。
+   - 次のような `<link>` が含まれているか確認する:
+     - `rel="alternate" type="text/plain" href="https://ストアのURL/llms.txt"`
+     - `href=".../llms.full.txt"`
+     - `href=".../docs/ai/README.md"`
+
+ここまで確認できれば「リンクを出す」ところは完了。llms.txt などの**中身**はまだ 404 でよい（リンクの出力だけ確認）。
+
+---
