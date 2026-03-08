@@ -15,17 +15,27 @@ export function normalizeRouterUrl(requestUrl: string): string {
   return url.toString();
 }
 
+const CANONICAL_APP_PATH = "/andplus-apps/shopify-ap-llmo/";
+
 /**
  * 管理画面から開いたときのパス（/store/XXX/apps/ap-llmo など）を検出し、
- * 正規パス /andplus-apps/shopify-ap-llmo/ へのリダイレクト URL を返す。
+ * 正規パスへのリダイレクト URL を返す。SHOPIFY_APP_URL があれば絶対 URL で返す。
  */
 function getRedirectForAdminAppPath(requestUrl: string): string | null {
   const url = new URL(requestUrl);
   const pathname = url.pathname;
   if (!pathname.includes("/apps/ap-llmo")) return null;
   const search = url.search ? `?${url.searchParams.toString()}` : "";
-  const target = `${url.origin}/andplus-apps/shopify-ap-llmo/${search}`;
-  return target;
+  const appUrl = process.env.SHOPIFY_APP_URL?.trim();
+  if (appUrl) {
+    try {
+      const base = new URL(appUrl);
+      return `${base.origin}${base.pathname.replace(/\/?$/, "")}/${search}`;
+    } catch {
+      // fall through to relative
+    }
+  }
+  return `${url.origin}${CANONICAL_APP_PATH}${search}`;
 }
 
 /**
