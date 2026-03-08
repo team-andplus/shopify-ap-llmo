@@ -4,6 +4,7 @@
   "scripts": {
     "build": "react-router build",
     "build:prod": "npm run setup:prod && SHOPIFY_APP_URL=https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/ react-router build",
+    "build:prod-url": "SHOPIFY_APP_URL=https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/ react-router build",
     "dev": "shopify app dev",
     "dev:localhost": "shopify app dev --use-localhost",
     "config:link": "shopify app config link",
