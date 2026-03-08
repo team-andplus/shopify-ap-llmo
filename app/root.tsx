@@ -1,5 +1,12 @@
 import { useEffect } from "react";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useOutlet } from "react-router";
+
+function RootOutlet() {
+  const outlet = useOutlet();
+  return outlet ?? (
+    <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
+  );
+}
 
 const APP_PATH = "/andplus-apps/shopify-ap-llmo";
 
@@ -55,7 +62,9 @@ export default function App() {
       </head>
       <body>
         <ClientUrlNormalizer />
-        <Outlet />
+        {useOutlet() ?? (
+          <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
+        )}
         <ScrollRestoration />
         <Scripts />
       </body>
