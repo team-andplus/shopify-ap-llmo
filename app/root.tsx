@@ -1,11 +1,24 @@
 import { useEffect } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useOutlet } from "react-router";
 
+/** 子ルートがマッチしなかったとき、アプリホーム（/app）へリダイレクトして本当の画面を表示する */
+function RedirectToAppHome() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const search = window.location.search || "";
+    const appHomeUrl = `${APP_PATH}/app${search}`;
+    window.location.replace(appHomeUrl);
+  }, []);
+  return (
+    <div style={{ padding: "2rem", fontSize: "0.9375rem", color: "#6d7175" }}>
+      読み込み中…
+    </div>
+  );
+}
+
 function RootOutlet() {
   const outlet = useOutlet();
-  return outlet ?? (
-    <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
-  );
+  return outlet ?? <RedirectToAppHome />;
 }
 
 const APP_PATH = "/andplus-apps/shopify-ap-llmo";
