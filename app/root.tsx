@@ -1,4 +1,22 @@
+import { useEffect } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+
+const APP_PATH = "/andplus-apps/shopify-ap-llmo";
+
+/** ブラウザの location が /store/.../apps//... のままのときに正規化 URL へリダイレクト（entry.client のフォールバック） */
+function ClientUrlNormalizer() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = window.location.pathname;
+    if (p.indexOf(APP_PATH) === -1 || p.indexOf(APP_PATH) === 0) return;
+    const after = p.split(APP_PATH)[1] ?? "/";
+    const suffix = after.startsWith("/") ? after : `/${after}`;
+    const path = (APP_PATH + suffix).replace(/\/\/+/g, "/") || `${APP_PATH}/`;
+    const url = path + (window.location.search || "");
+    window.location.replace(url);
+  }, []);
+  return null;
+}
 
 export default function App() {
   return (
@@ -31,6 +49,7 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <ClientUrlNormalizer />
         <Outlet />
         <ScrollRestoration />
         <Scripts />

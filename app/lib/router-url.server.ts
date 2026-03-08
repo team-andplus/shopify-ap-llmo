@@ -14,3 +14,16 @@ export function normalizeRouterUrl(requestUrl: string): string {
   url.pathname = normalizedPath;
   return url.toString();
 }
+
+/**
+ * リクエスト URL が正規化すべきパス（/store/... や二重スラッシュ含む）なら、
+ * 302 用の正規化済み URL を返す。不要なら null。
+ */
+export function getRedirectUrlIfUnnormalized(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  const pathname = url.pathname;
+  if (!pathname.includes(APP_PATH)) return null;
+  const normalized = normalizeRouterUrl(requestUrl);
+  if (url.toString() === normalized) return null;
+  return normalized;
+}
