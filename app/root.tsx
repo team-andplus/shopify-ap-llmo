@@ -16,6 +16,21 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: [
+              "(function(){",
+              'var p=document.location.pathname,a="/andplus-apps/shopify-ap-llmo";',
+              "if(p.indexOf(a)!==-1&&p.indexOf(a)!==0){",
+              'var s=p.split(a)[1]||"/";',
+              'if(s.charAt(0)!=="/")s="/"+s;',
+              'var n=a+s.replace(/\\/\\/+/g,"/")||a+"/";',
+              "window.history.replaceState(null,'',n+(document.location.search||''));",
+              "}",
+              "})();",
+            ].join(""),
+          }}
+        />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
