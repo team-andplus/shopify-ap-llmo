@@ -135,10 +135,38 @@ pm2 save
 cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
 git pull
 git submodule update --init --recursive
-npm ci --omit=dev
-npm run build:prod-url   # 通常の build だと /andplus-apps/shopify-ap-llmo/ で 404 になる
+npm ci --omit=dev   # 依存に変更があれば
+npm run build
 pm2 restart shopify-ap-llmo
 ```
+
+---
+
+## 9. 本番で 404 のときの確認（basename が入っているか）
+
+**手順（サーバーで順に実行）:**
+
+```bash
+cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
+
+# (1) pull した設定に defaultProdUrl が入っているか
+grep -n "defaultProdUrl\|envUrl" react-router.config.ts
+# → "defaultProdUrl" と "envUrl" の行が出れば OK。出ない場合は git pull が反映されていない。
+
+# (2) ビルド成果物を消してからビルド（キャッシュを外す）
+rm -rf build
+npm run build
+
+# (3) ビルド結果の basename を確認
+grep -o 'basename = "[^"]*"' build/server/index.js
+# → basename = "/andplus-apps/shopify-ap-llmo/" なら OK。basename = "/" のままなら設定が効いていない。
+
+# (4) 直っていれば再起動
+pm2 restart shopify-ap-llmo
+```
+
+- **(1) で何も出ない** → リポジトリの最新がサーバーに来ていない（ブランチ・リモート・push を確認）。
+- **(1) は出るが (3) がまだ "/"** → 同じディレクトリで `npm run build` しているか、別の `.env` が `SHOPIFY_APP_URL` を上書きしていないか確認。必要なら `unset SHOPIFY_APP_URL` してから `npm run build`。
 
 ---
 

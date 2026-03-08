@@ -1,10 +1,19 @@
 import type { Config } from "@react-router/dev/config";
 
-// SHOPIFY_APP_URL 未設定 or localhost のときは本番 URL（サーバーで .env が localhost でも basename が入る）
+// 未設定 / localhost / パスが "/" のときは本番 URL（サーバーで .env がパスなしでも basename が入る）
 const defaultProdUrl = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/";
 const envUrl = process.env.SHOPIFY_APP_URL?.trim();
-const appUrl =
-  envUrl && !envUrl.includes("localhost") ? envUrl : defaultProdUrl;
+const useProd =
+  !envUrl ||
+  envUrl.includes("localhost") ||
+  (() => {
+    try {
+      return new URL(envUrl).pathname.replace(/\/?$/, "") === "";
+    } catch {
+      return true;
+    }
+  })();
+const appUrl = useProd ? defaultProdUrl : envUrl;
 const host = new URL(appUrl).hostname;
 const pathname = new URL(appUrl).pathname;
 const basename = host !== "localhost" && pathname !== "/" ? pathname.replace(/\/?$/, "/") : "/";
