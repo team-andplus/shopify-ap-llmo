@@ -122,10 +122,24 @@ npm run start
 
 Ctrl+C で止めて、pm2 で常時起動する場合:
 
+**必ずアプリのディレクトリで実行する**（serve は `build/client/assets` を相対パスで参照するため、cwd が違うと JS が 404 で真っ白になる）:
+
 ```bash
+cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
 PORT=3001 DOTENV_CONFIG_PATH=../common/shopify-ap-llmo.env pm2 start npm --name shopify-ap-llmo -- run start
 pm2 save
 ```
+
+すでに別のディレクトリから起動してしまった場合は、一度削除してから上のように `cd` して起動し直す:
+
+```bash
+pm2 delete shopify-ap-llmo
+cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
+PORT=3001 DOTENV_CONFIG_PATH=../common/shopify-ap-llmo.env pm2 start npm --name shopify-ap-llmo -- run start
+pm2 save
+```
+
+cwd の確認: `pm2 show shopify-ap-llmo` の **exec cwd** が `.../shopify-ap-llmo` になっていること。またサーバー上に `build/client/assets/*.js` が存在することを確認する。
 
 ---
 
