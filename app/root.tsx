@@ -62,9 +62,7 @@ export default function App() {
       </head>
       <body>
         <ClientUrlNormalizer />
-        {useOutlet() ?? (
-          <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
-        )}
+        <RootOutlet />
         <ScrollRestoration />
         <Scripts />
       </body>
