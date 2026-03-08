@@ -4,6 +4,21 @@ export default function App() {
   return (
     <html lang="ja">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: [
+              "(function(){",
+              'var p=document.location.pathname,a="/andplus-apps/shopify-ap-llmo";',
+              "if(p.indexOf(a)!==-1&&p.indexOf(a)!==0){",
+              'var s=p.split(a)[1]||"/";',
+              'if(s.charAt(0)!=\"/\")s=\"/\"+s;',
+              'var n=(a+s).replace(/\\/\\/+/g,"/")||a+"/";',
+              "window.history.replaceState(null,\"\",n+(document.location.search||\"\"));",
+              "}",
+              "})();",
+            ].join(""),
+          }}
+        />
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <link rel="preconnect" href="https://cdn.shopify.com/" />
@@ -16,21 +31,6 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: [
-              "(function(){",
-              'var p=document.location.pathname,a="/andplus-apps/shopify-ap-llmo";',
-              "if(p.indexOf(a)!==-1&&p.indexOf(a)!==0){",
-              'var s=p.split(a)[1]||"/";',
-              'if(s.charAt(0)!=="/")s="/"+s;',
-              'var n=a+s.replace(/\\/\\/+/g,"/")||a+"/";',
-              "window.history.replaceState(null,'',n+(document.location.search||''));",
-              "}",
-              "})();",
-            ].join(""),
-          }}
-        />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
