@@ -15,7 +15,10 @@ if (process.env.HOST) {
   delete process.env.HOST;
 }
 
-const rawAppUrl = process.env.SHOPIFY_APP_URL || "http://localhost";
+const defaultProdUrl = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/";
+const rawAppUrl =
+  process.env.SHOPIFY_APP_URL ||
+  (process.env.NODE_ENV === "production" ? defaultProdUrl : "http://localhost");
 const appUrl =
   rawAppUrl.startsWith("http://") || rawAppUrl.startsWith("https://")
     ? rawAppUrl
