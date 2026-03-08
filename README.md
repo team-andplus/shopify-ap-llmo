@@ -134,6 +134,8 @@ npm run deploy       # Shopify に extension と app をデプロイ
 
 本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL を指定。ビルド・DB マイグレーションは `npm run setup:prod`（prisma-mysql 使用）で実行する。
 
+**Nginx**: 本番サーバーで `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` を Node にプロキシする **location の追加**が必要。設定例は **docs/NGINX.md** を参照。
+
 ### 構成
 
 - **app/** … React Router + Shopify App（OAuth・webhook・管理画面 1 ページ）
