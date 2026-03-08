@@ -26,7 +26,8 @@ const sectionStyle = {
 const listStyle = { margin: 0, paddingLeft: "1.25rem" } as const;
 
 export default function AppIndex() {
-  const { storeUrl } = useLoaderData<typeof loader>();
+  const data = useLoaderData<{ storeUrl?: string }>();
+  const storeUrl = data?.storeUrl ?? "";
 
   return (
     <div style={{ padding: "2rem", maxWidth: "720px" }}>

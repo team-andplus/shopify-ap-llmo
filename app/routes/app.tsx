@@ -1,9 +1,10 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, Outlet, useLoaderData, useRouteError, redirect } from "react-router";
+import { Link, Outlet, useLoaderData, useLocation, useOutlet, useRouteError, redirect } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { getAppRedirectBase } from "../lib/redirect-url.server";
+import AppIndex from "./app._index";
 
 /** App Bridge Next が shop を読むために head に meta を出す（script より前に必要） */
 export function meta({
@@ -27,7 +28,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { session } = await authenticate.admin(request);
     const apiKey = process.env.SHOPIFY_API_KEY ?? "";
-    return { apiKey, shop: session?.shop ?? "" };
+    const shop = session?.shop ?? "";
+    const storeUrl = shop ? `https://${shop}` : "";
+    return { apiKey, shop, storeUrl };
   } catch (err) {
     console.error("[ap-llmo] app layout loader error:", err);
     // 認証失敗時は 403 ではなく /auth へリダイレクト（再ログインで解消するため）
@@ -39,13 +42,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function AppLayout() {
   const { apiKey } = useLoaderData<typeof loader>();
+  const outlet = useOutlet();
+  const location = useLocation();
+  const isAppHome = /\/app\/?$/.test(location.pathname);
+  const content = outlet ?? (isAppHome ? <AppIndex /> : null);
 
   return (
     <AppProvider embedded apiKey={apiKey}>
       <nav style={{ padding: "1rem", borderBottom: "1px solid #e1e3e5" }}>
         <Link to="/app">AP LLMO</Link>
       </nav>
-      <Outlet />
+      {content}
       <footer
         style={{
           marginTop: "2rem",
