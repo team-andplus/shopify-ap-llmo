@@ -85,27 +85,23 @@ cp .env.example .env
 npm run setup
 ```
 
-### 開発サーバー
+### 開発サーバー・確認の流れ
 
-```bash
-npm run dev
-```
+schemabridge と同様、**Partners のアプリ URL は本番のまま**運用する。確認時は **本番にデプロイしてから**、管理画面でアプリを開く。
 
-Shopify CLI がトンネル URL を表示するので、表示された URL を Partners のアプリ設定の「アプリ URL」「リダイレクト URL」に設定する（`automatically_update_urls_on_dev` を true にすれば自動更新も可）。
+- ビルド・デプロイ: `npm run build:prod` → `npm run deploy`（または CI でデプロイ）
+- 本番サーバーで `npm run start` 等でアプリを起動しておく
+- ストアの管理画面からアプリを開いて動作確認
+
+ローカルで `shopify app dev` する場合はトンネル URL が変わるため、そのときだけ Partners の URL をトンネルに合わせる必要がある（通常の開発フローでは本番デプロイで確認）。
 
 ### 403 が続くとき（ローカル）
 
-**インストール画面までは行けたが、インストール後に 403** になる場合、管理画面の iframe が **本番 URL**（`https://apps.andplus.tech/...`）を読みに行っている。本番は未起動のため 403 になる。
-
-- **対処（手動）**: `npm run dev` を起動し、ターミナルに表示される **プレビュー URL**（例: `https://xxx.trycloudflare.com` や `https://localhost:ポート`）をコピーする。Partners の **アプリの設定**（または「バージョン」→ 該当バージョン）で次を**手動で**書き換える:
-  - **アプリ URL**: `https://表示されたトンネルまたはlocalhostのURL/`（末尾スラッシュあり）
-  - **リダイレクト URL**: `https://表示されたURL/auth`（複数ある場合は該当するものを上記に合わせる）
-- 保存後、ストアでアプリを開き直す（または再インストールしてから開く）。ローカルで 403 が解消する。
-- **注意**: 本番デプロイ時や、他の開発者が使う前に、Partners の URL を本番（`https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` と `/auth`）に戻すか、`npm run deploy` で上書きする。
+**インストール後に 403** になる場合、Partners のアプリ URL が本番（`https://apps.andplus.tech/...`）のため、**本番サーバーが未起動だと 403** になる。schemabridge と同様に、**本番にデプロイしてから**アプリを開いて確認する運用にする。
 
 ---
 
-埋め込みアプリで 403 になる他の原因として、**CLI のトンネル**がブロックしている場合がある。次を順に試す。
+トンネルでローカル開発する場合など、403 の他の原因として **CLI のトンネル**がブロックしていることがある。次を順に試す。
 
 1. **URL リセット**  
    ```bash

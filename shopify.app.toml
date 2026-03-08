@@ -7,8 +7,8 @@ application_url = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/"
 embedded = true
 
 [build]
-# ローカル開発時: true にすると dev 起動時に Partners のアプリ URL がトンネル URL に更新され、インストール後の 403 を防ぐ
-automatically_update_urls_on_dev = true
+include_config_on_deploy = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-01"
