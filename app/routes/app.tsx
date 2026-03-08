@@ -5,6 +5,21 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { getAppRedirectBase } from "../lib/redirect-url.server";
 
+/** App Bridge Next が shop を読むために head に meta を出す（script より前に必要） */
+export function meta({
+  loaderData,
+}: {
+  loaderData: { apiKey?: string; shop?: string } | undefined;
+}) {
+  if (!loaderData?.apiKey) return [];
+  return [
+    { name: "shopify-api-key", content: loaderData.apiKey },
+    ...(loaderData.shop
+      ? [{ name: "shopify-shop", content: loaderData.shop } as const]
+      : []),
+  ];
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
