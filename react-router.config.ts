@@ -1,11 +1,10 @@
 import type { Config } from "@react-router/dev/config";
 
-// npm run build 時に SHOPIFY_APP_URL が渡らない環境（例: サーバー）でも basename を埋めるため
+// SHOPIFY_APP_URL 未設定 or localhost のときは本番 URL（サーバーで .env が localhost でも basename が入る）
 const defaultProdUrl = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/";
-const isBuild = process.env.npm_lifecycle_event === "build";
+const envUrl = process.env.SHOPIFY_APP_URL?.trim();
 const appUrl =
-  process.env.SHOPIFY_APP_URL ||
-  (isBuild ? defaultProdUrl : "http://localhost");
+  envUrl && !envUrl.includes("localhost") ? envUrl : defaultProdUrl;
 const host = new URL(appUrl).hostname;
 const pathname = new URL(appUrl).pathname;
 const basename = host !== "localhost" && pathname !== "/" ? pathname.replace(/\/?$/, "/") : "/";

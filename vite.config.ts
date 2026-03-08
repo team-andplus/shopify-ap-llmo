@@ -16,10 +16,9 @@ if (process.env.HOST) {
 }
 
 const defaultProdUrl = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/";
-const isBuild = process.env.npm_lifecycle_event === "build";
+const envUrl = process.env.SHOPIFY_APP_URL?.trim();
 const rawAppUrl =
-  process.env.SHOPIFY_APP_URL ||
-  (isBuild ? defaultProdUrl : "http://localhost");
+  envUrl && !envUrl.includes("localhost") ? envUrl : defaultProdUrl;
 const appUrl =
   rawAppUrl.startsWith("http://") || rawAppUrl.startsWith("https://")
     ? rawAppUrl
