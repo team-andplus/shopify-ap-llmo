@@ -11,11 +11,16 @@ function normalizeLocationForRouter(): boolean {
   if (typeof window === "undefined") return false;
   const p = window.location.pathname;
   const appPath = "/andplus-apps/shopify-ap-llmo";
+  const search = window.location.search || "";
+  if (p.includes("/apps/ap-llmo") && p.indexOf(appPath) !== 0) {
+    window.location.replace(`${appPath}/${search}`);
+    return true;
+  }
   if (p.indexOf(appPath) === -1 || p.indexOf(appPath) === 0) return false;
   const after = p.split(appPath)[1] ?? "/";
   const suffix = after.startsWith("/") ? after : `/${after}`;
   const path = (appPath + suffix).replace(/\/\/+/g, "/") || `${appPath}/`;
-  const url = path + (window.location.search || "");
+  const url = path + search;
   window.location.replace(url);
   return true;
 }

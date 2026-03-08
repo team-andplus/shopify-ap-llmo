@@ -8,6 +8,10 @@ function ClientUrlNormalizer() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = window.location.pathname;
+    if (p.includes("/apps/ap-llmo") && p.indexOf(APP_PATH) !== 0) {
+      window.location.replace(`${APP_PATH}/${window.location.search || ""}`);
+      return;
+    }
     if (p.indexOf(APP_PATH) === -1 || p.indexOf(APP_PATH) === 0) return;
     const after = p.split(APP_PATH)[1] ?? "/";
     const suffix = after.startsWith("/") ? after : `/${after}`;
@@ -26,12 +30,13 @@ export default function App() {
           dangerouslySetInnerHTML={{
             __html: [
               "(function(){",
-              'var p=document.location.pathname,a="/andplus-apps/shopify-ap-llmo";',
+              'var p=document.location.pathname,a="/andplus-apps/shopify-ap-llmo",q=document.location.search||"";',
+              'if(p.indexOf("/apps/ap-llmo")!==-1&&p.indexOf(a)!==0){document.location.replace(a+"/"+q);return;}',
               "if(p.indexOf(a)!==-1&&p.indexOf(a)!==0){",
               'var s=p.split(a)[1]||"/";',
               'if(s.charAt(0)!=\"/\")s=\"/\"+s;',
               'var n=(a+s).replace(/\\/\\/+/g,\"/\")||a+\"/\";',
-              "document.location.replace(n+(document.location.search||\"\"));",
+              "document.location.replace(n+q);",
               "}",
               "})();",
             ].join(""),
