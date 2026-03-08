@@ -17,10 +17,12 @@
 
 | ファイル／パス | 役割 | 作成 |
 |----------------|------|------|
-| **llms.txt** | LLM に渡す本文。サイトの意図・概要など。 | ユーザー定義（自動生成しない） |
+| **llms.txt** | LLM に渡す本文。サイトの意図・概要など。 | **案B**: アプリが Files API でひな形を作成 → ユーザーは「コンテンツ→ファイル」で本文を編集 |
 | **llms.full.txt** | サイト全体の要約・一覧など。 | アプリが自動生成 |
 | **docs/ai/README.md** | 考え方 ＋ 壁打ちプロンプト。 | ユーザー定義 |
 | **docs/ai/〇〇.md** | 必要に応じた考え方・壁打ちプロンプト。 | ユーザー定義 |
+
+**llms.txt の設置方針**: **案B** を採用。アプリが「llms.txt を用意」ボタンで Shopify Files にひな形の .txt を 1 個作成し、その CDN URL をメタフィールドに保存。Theme Extension はその URL を `<link>` に使う。詳細は **docs/llms-txt設置の2案_具体.md** を参照。
 
 ---
 
@@ -157,7 +159,7 @@ npm run deploy       # Shopify に extension と app をデプロイ
    - ストアフロント（トップページなど）をブラウザで開く。
    - 右クリック → **ページのソースを表示**（または開発者ツールの Elements で `<head>` 内）を開く。
    - 次のような `<link>` が含まれているか確認する:
-     - `rel="alternate" type="text/plain" href="https://ストアのURL/llms.txt"`
+     - llms.txt: `rel="alternate" type="text/plain" href="(メタフィールドの CDN URL)"`（案B: アプリで「作成」した Files の URL）
      - `href=".../llms.full.txt"`
      - `href=".../docs/ai/README.md"`
 
