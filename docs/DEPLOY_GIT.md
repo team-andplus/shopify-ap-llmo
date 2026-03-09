@@ -159,6 +159,8 @@ pm2 restart shopify-ap-llmo
 
 **Application Error が出る場合**: 新規テーブル（例: LlmoSettings）追加後に `setup:prod` を実行していないと MySQL にテーブルがなくエラーになる。上記の `npm run setup:prod` を実行してから再起動すること。
 
+**補足**: `setup:prod` では MySQL 用マイグレーションを **prisma-mysql/migrations** から適用するため、`prisma migrate deploy` を `prisma-mysql` ディレクトリで実行している。ログに「3 migrations found in prisma-mysql/migrations」や「Applying migration ...」と出れば MySQL に正しく適用されている。
+
 ---
 
 ## 9. 本番で 404 のときの確認（basename が入っているか）

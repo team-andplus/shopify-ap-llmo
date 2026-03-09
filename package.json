@@ -14,7 +14,7 @@
     "env": "shopify app env",
     "start": "DOTENV_CONFIG_PATH=../common/shopify-ap-llmo.env node -r dotenv/config ./node_modules/@react-router/serve/dist/cli.js ./build/server/index.js",
     "setup": "prisma generate && prisma migrate deploy",
-    "setup:prod": "prisma generate --schema=prisma-mysql/schema.prisma && prisma migrate deploy --schema=prisma-mysql/schema.prisma",
+    "setup:prod": "prisma generate --schema=prisma-mysql/schema.prisma && cd prisma-mysql && prisma migrate deploy --schema=schema.prisma",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "shopify": "shopify",
     "prisma": "prisma",
