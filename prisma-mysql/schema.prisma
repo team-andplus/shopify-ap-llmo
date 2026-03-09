@@ -31,18 +31,18 @@ model Session {
 }
 
 model LlmoSettings {
-  id              String   @id @default(cuid())
-  shop            String   @unique
-  siteType        String?
-  storeName       String?
-  brandName       String?
-  keywords        String?
-  prohibitions    String?  @db.Text
-  llmsTxtBody     String?  @db.Text
-  llmsTxtFileUrl  String?  @db.Text
-  llmsTxtFileId   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  shop             String   @unique
+  siteType         String?
+  title            String?
+  roleSummary      String?  @db.Text
+  sectionsOutline  String?  @db.Text
+  notesForAi       String?  @db.Text
+  llmsTxtBody      String?  @db.Text
+  llmsTxtFileUrl   String?  @db.Text
+  llmsTxtFileId    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("LlmoSettings")
 }

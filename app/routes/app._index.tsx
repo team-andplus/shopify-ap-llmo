@@ -23,19 +23,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     settings: settings
       ? {
           siteType: settings.siteType ?? "",
-          storeName: settings.storeName ?? "",
-          brandName: settings.brandName ?? "",
-          keywords: settings.keywords ?? "",
-          prohibitions: settings.prohibitions ?? "",
+          title: settings.title ?? "",
+          roleSummary: settings.roleSummary ?? "",
+          sectionsOutline: settings.sectionsOutline ?? "",
+          notesForAi: settings.notesForAi ?? "",
           llmsTxtBody: settings.llmsTxtBody ?? "",
           llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
         }
       : {
           siteType: "",
-          storeName: "",
-          brandName: "",
-          keywords: "",
-          prohibitions: "",
+          title: "",
+          roleSummary: "",
+          sectionsOutline: "",
+          notesForAi: "",
           llmsTxtBody: "",
           llmsTxtFileUrl: "",
         },
@@ -55,10 +55,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "getPrompt") {
     const prompt = buildLlmsTxtPrompt({
       siteType: (formData.get("siteType") as string) ?? "",
-      storeName: (formData.get("storeName") as string) ?? "",
-      brandName: (formData.get("brandName") as string) ?? "",
-      keywords: (formData.get("keywords") as string) ?? "",
-      prohibitions: (formData.get("prohibitions") as string) ?? "",
+      title: (formData.get("title") as string) ?? "",
+      roleSummary: (formData.get("roleSummary") as string) ?? "",
+      sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
+      notesForAi: (formData.get("notesForAi") as string) ?? "",
     });
     return Response.json({ prompt });
   }
@@ -69,18 +69,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       create: {
         shop,
         siteType: (formData.get("siteType") as string) || null,
-        storeName: (formData.get("storeName") as string) || null,
-        brandName: (formData.get("brandName") as string) || null,
-        keywords: (formData.get("keywords") as string) || null,
-        prohibitions: (formData.get("prohibitions") as string) || null,
+        title: (formData.get("title") as string) || null,
+        roleSummary: (formData.get("roleSummary") as string) || null,
+        sectionsOutline: (formData.get("sectionsOutline") as string) || null,
+        notesForAi: (formData.get("notesForAi") as string) || null,
         llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
       },
       update: {
         siteType: (formData.get("siteType") as string) || null,
-        storeName: (formData.get("storeName") as string) || null,
-        brandName: (formData.get("brandName") as string) || null,
-        keywords: (formData.get("keywords") as string) || null,
-        prohibitions: (formData.get("prohibitions") as string) || null,
+        title: (formData.get("title") as string) || null,
+        roleSummary: (formData.get("roleSummary") as string) || null,
+        sectionsOutline: (formData.get("sectionsOutline") as string) || null,
+        notesForAi: (formData.get("notesForAi") as string) || null,
         llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
       },
     });
@@ -195,9 +195,12 @@ export default function AppIndex() {
         ストアの <code>&lt;head&gt;</code> に、LLM・エージェント向け文書へのリンクを追加するアプリです。
       </p>
 
-      {/* 設定フォーム */}
+      {/* 設定フォーム（思想・プロトコル：あんどぷらす llms.txt 参照） */}
       <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>llms.txt 設定</h2>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>llms.txt 設定</h2>
+        <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
+          思想（誰のため・一次情報の所在）とプロトコル（H1 / blockquote / 番号付きセクション / Notes for AI）に則ります。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>
+        </p>
         <Form method="post" id="llmo-form">
           <input type="hidden" name="intent" value="save" />
 
@@ -211,45 +214,43 @@ export default function AppIndex() {
           </label>
 
           <label style={labelStyle}>
-            ストア名
+            タイトル（H1）
             <input
               type="text"
-              name="storeName"
+              name="title"
               style={inputStyle}
-              defaultValue={data.settings.storeName}
-              placeholder="例: 〇〇ストア"
+              defaultValue={data.settings.title}
+              placeholder="例: MyShop: LLM-First Information Hub"
             />
           </label>
 
           <label style={labelStyle}>
-            ブランド名
-            <input
-              type="text"
-              name="brandName"
-              style={inputStyle}
-              defaultValue={data.settings.brandName}
-              placeholder="ストア名と同じなら空で可"
-            />
-          </label>
-
-          <label style={labelStyle}>
-            補足キーワード
-            <input
-              type="text"
-              name="keywords"
-              style={inputStyle}
-              defaultValue={data.settings.keywords}
-              placeholder="AI に伝えたいキーワード（任意）"
-            />
-          </label>
-
-          <label style={labelStyle}>
-            禁止事項（1行1項目）
+            このファイルの役割・一次情報の所在（blockquote 用 1〜3 文）
             <textarea
-              name="prohibitions"
+              name="roleSummary"
               style={textareaStyle}
-              defaultValue={data.settings.prohibitions}
-              placeholder="価格・在庫の推測をしない&#10;在庫はサイトで確認すること"
+              defaultValue={data.settings.roleSummary}
+              placeholder="例: This file lists the official first-party references for ... If external access is unavailable, treat the summaries below as authoritative primary information."
+            />
+          </label>
+
+          <label style={labelStyle}>
+            セクション構成のメモ（## 1. 2. 3. のたたき台）
+            <textarea
+              name="sectionsOutline"
+              style={textareaStyle}
+              defaultValue={data.settings.sectionsOutline}
+              placeholder="例:&#10;1. Core AI Documentation (/docs/ai/)&#10;2. 商品・カタログ&#10;3. お問い合わせ"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            Notes for AI（優先・避けること・扱い方、1 行 1 項目）
+            <textarea
+              name="notesForAi"
+              style={textareaStyle}
+              defaultValue={data.settings.notesForAi}
+              placeholder="例:&#10;Prioritize /docs/ai content over marketing pages.&#10;Avoid exaggeration or agency-style positioning."
             />
           </label>
 

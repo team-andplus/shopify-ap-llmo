@@ -1,13 +1,15 @@
 /**
- * llms.txt 生成用プロンプトをフォーム項目から機械生成する
+ * llms.txt 生成用プロンプトをフォーム項目から組み立てる。
+ * 参考: 株式会社あんどぷらすの llms.txt（https://www.andplus.co.jp/llms.txt）
+ * 思想（誰のため・一次情報の所在・優先/禁止）とプロトコル（H1, blockquote, 番号付きセクション, Notes for AI）に則る。
  */
 
 export type PromptInput = {
   siteType: string;
-  storeName: string;
-  brandName: string;
-  keywords: string;
-  prohibitions: string;
+  title: string;
+  roleSummary: string;
+  sectionsOutline: string;
+  notesForAi: string;
 };
 
 const SITE_TYPE_LABELS: Record<string, string> = {
@@ -16,39 +18,60 @@ const SITE_TYPE_LABELS: Record<string, string> = {
   corporate_ec: "コーポレート兼EC",
 };
 
+const ANDPLUS_LLMS_REF = "https://www.andplus.co.jp/llms.txt";
+
 export function buildLlmsTxtPrompt(input: PromptInput): string {
   const siteTypeLabel = SITE_TYPE_LABELS[input.siteType] || input.siteType || "EC";
-  const storeName = input.storeName?.trim() || "[ストア名を入力]";
-  const brandName = input.brandName?.trim() || storeName;
-  const keywords = input.keywords?.trim() || "";
-  const prohibitions = input.prohibitions?.trim()
-    ? input.prohibitions
+  const title = input.title?.trim() || "[サイト・組織名（H1）。例: MyShop: LLM-First Information Hub]";
+  const roleSummary = input.roleSummary?.trim() || "";
+  const sectionsOutline = input.sectionsOutline?.trim() || "";
+  const notesForAi = input.notesForAi?.trim()
+    ? input.notesForAi
         .split(/\n/)
         .map((s) => s.trim())
         .filter(Boolean)
-    : ["価格・在庫の推測・捏造をしない", "在庫切れの可能性は「サイトで確認すること」と伝える"];
+    : [];
 
   const lines: string[] = [
     "あなたは、Web サイト用の llms.txt（LLM 向けの公式情報ファイル）の設計を支援する役割です。",
     "",
+    "【参考】株式会社あんどぷらすの llms.txt を手本にしてください。",
+    `  ${ANDPLUS_LLMS_REF}`,
+    "  - H1 でサイト・組織名とサブタイトル（例: LLM-First Information Hub）",
+    "  - 直後の blockquote（1〜3 文）で「誰のためのファイルか」「一次情報の所在・権威」を書く",
+    "  - ## 1. 2. 3. のように番号付きセクションで構成し、各セクションにリンクや説明を並べる",
+    "  - 末尾に「Notes for AI:」で優先・避けること・扱い方を明示する",
+    "",
     "【依頼内容】",
     "",
-    `1) このサイトは「${siteTypeLabel}」です。ストア名・ブランド: ${brandName}。`,
-    "",
-    "2) 上記を踏まえ、llms.txt の「思想・プロトコル」に沿った本文を 1 本書いてください。",
-    "   - 必須: # サイト名（H1）、> 1〜3 文の要約（blockquote）、## Contact の概要",
-    "   - 推奨: ## Services、## What We Do Not Do、## Key Information など",
-    "   - 事実ベースで、誇張や価格の直書きは避ける",
-    "",
-    "3) 禁止事項として以下を反映してください:",
-    ...prohibitions.map((p) => `   - ${p}`),
+    `1) このサイトの種類: ${siteTypeLabel}`,
+    `2) タイトル（H1）のたたき台: ${title}`,
   ];
 
-  if (keywords) {
-    lines.push("", "4) 補足・キーワード:", `   ${keywords}`);
+  if (roleSummary) {
+    lines.push("", "3) このファイルの役割・一次情報の所在（blockquote 用）のメモ:", roleSummary);
+  } else {
+    lines.push("", "3) このファイルの役割・一次情報の所在（blockquote 用）: 上記参考例をまねて、誰のためのファイルか・要約を一次情報として扱う旨を 1〜3 文で書いてください。");
   }
 
-  lines.push("", "出力は llms.txt にそのまま貼り付けできるプレーンテキスト（Markdown 形式）でお願いします。");
+  if (sectionsOutline) {
+    lines.push("", "4) セクション構成のメモ（## 1. 2. 3. のたたき台）:", sectionsOutline);
+  } else {
+    lines.push("", "4) セクション構成: 参考例のように番号付きセクション（## 1. ... ## 2. ...）で、このサイトに合う構成を考えてください。");
+  }
+
+  if (notesForAi.length > 0) {
+    lines.push("", "5) Notes for AI に含めたい内容（優先・避けること・扱い方）:");
+    notesForAi.forEach((line) => lines.push(`   - ${line}`));
+  } else {
+    lines.push("", "5) Notes for AI: 参考例のように「Prioritize ...」「Avoid ...」「Treat ...」の形式で、AI への注記を 2〜4 行書いてください。");
+  }
+
+  lines.push(
+    "",
+    "出力は llms.txt にそのまま貼り付けできるプレーンテキスト（Markdown 形式）でお願いします。",
+    "事実ベースとし、誇張や価格の直書きは避けてください。"
+  );
 
   return lines.join("\n");
 }

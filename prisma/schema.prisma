@@ -30,20 +30,20 @@ model Session {
   @@map("Session")
 }
 
-/// ストアごとの LLMO 設定。アプリホームのフォームで保存。
+/// ストアごとの LLMO 設定。思想・プロトコルに則した項目（あんどぷらす llms.txt 参照）。
 model LlmoSettings {
-  id              String   @id @default(cuid())
-  shop            String   @unique
-  siteType        String?  // コーポレート / ECのみ / コーポレート兼EC
-  storeName       String?
-  brandName       String?
-  keywords        String?  // 補足キーワード（自由文）
-  prohibitions    String?  // 禁止事項（JSON 配列 or 改行区切り）
-  llmsTxtBody     String?  // AI が生成した llms.txt 本文（貼り付け用）
-  llmsTxtFileUrl  String?  // Files API で作成したファイルの CDN URL（head 参照用）
-  llmsTxtFileId   String?  // 更新用の file id（fileUpdate 用）
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  shop             String   @unique
+  siteType         String?  // コーポレート / ECのみ / コーポレート兼EC
+  title            String?  // H1 用（サイト・組織名、サブタイトル可）
+  roleSummary      String?  // このファイルの役割・一次情報の所在（blockquote 用 1〜3 文）
+  sectionsOutline  String?  // セクション構成のメモ（## 1. 2. 3. のたたき台）
+  notesForAi       String?  // Notes for AI（優先・避けること・扱い方）
+  llmsTxtBody      String?  // AI が生成した llms.txt 本文（貼り付け用）
+  llmsTxtFileUrl   String?  // Files API で作成したファイルの CDN URL（head 参照用）
+  llmsTxtFileId    String?  // 更新用の file id（fileUpdate 用）
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("LlmoSettings")
 }
