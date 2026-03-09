@@ -191,15 +191,26 @@ export default function AppIndex() {
   return (
     <div style={{ padding: "2rem", maxWidth: "720px" }}>
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>AP LLMO</h1>
-      <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1.5rem" }}>
+      <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
         ストアの <code>&lt;head&gt;</code> に、LLM・エージェント向け文書へのリンクを追加するアプリです。
       </p>
+
+      {/* このアプリの思想 */}
+      <section style={{ ...sectionStyle, borderLeft: "4px solid #2c6ecb" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>このアプリの思想</h2>
+        <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
+          AI に対する私たちの思想は「<strong>嘘をつかせない</strong>」に集約されます。事実・証拠を優先し、誇張や捏造を避けることで、LLM がストア情報を扱うときの解釈と生成を適切に導きます。
+        </p>
+        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#6d7175", lineHeight: 1.6 }}>
+          ＜LLMO・AIO として＞ llms.txt を「思想とプロトコル」のためのファイルと捉え、一次情報の所在を明示し、Notes for AI で優先・禁止・扱い方を約束する設計を推奨しています。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>
+        </p>
+      </section>
 
       {/* 設定フォーム（思想・プロトコル：あんどぷらす llms.txt 参照） */}
       <section style={sectionStyle}>
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>llms.txt 設定</h2>
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
-          思想（誰のため・一次情報の所在）とプロトコル（H1 / blockquote / 番号付きセクション / Notes for AI）に則ります。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>
+          思想（誰のため・一次情報の所在）とプロトコル（H1 / blockquote / 番号付きセクション / Notes for AI）に則ります。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>。あんどぷらすの AI に対する思想は「<strong>嘘をつかせない</strong>」（事実・証拠を優先し、誇張や捏造を避ける）に集約されます。
         </p>
         <Form method="post" id="llmo-form">
           <input type="hidden" name="intent" value="save" />

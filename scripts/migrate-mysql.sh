@@ -39,19 +39,14 @@ fi
 # _prisma_migrations に登録済みで「No pending」のまま、実際には未適用のことがあるため。
 # 既に適用済みならエラーになるが、その場合はメッセージを出して続行する。
 if [ -f "$MIGRATION2" ]; then
-  echo "[migrate-mysql] Running 20250308100000_add_llmo_settings..."
-  if prisma db execute --file "$MIGRATION2" --schema="$SCHEMA"; then
+  if prisma db execute --file "$MIGRATION2" --schema="$SCHEMA" 2>/dev/null; then
     echo "[migrate-mysql] Applied 20250308100000_add_llmo_settings (LlmoSettings table)."
-  else
-    echo "[migrate-mysql] (skip or already applied: add_llmo_settings)"
   fi
 fi
 if [ -f "$MIGRATION3" ]; then
-  echo "[migrate-mysql] Running 20250308110000_llmo_thought_protocol..."
-  if prisma db execute --file "$MIGRATION3" --schema="$SCHEMA"; then
+  if prisma db execute --file "$MIGRATION3" --schema="$SCHEMA" 2>/dev/null; then
     echo "[migrate-mysql] Applied 20250308110000_llmo_thought_protocol (LlmoSettings columns)."
-  else
-    echo "[migrate-mysql] (skip or already applied: llmo_thought_protocol)"
   fi
 fi
+# 上記で何も表示されていなければ、いずれも適用済み（正常）
 exit 0

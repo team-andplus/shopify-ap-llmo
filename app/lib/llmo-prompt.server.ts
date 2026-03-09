@@ -37,6 +37,7 @@ export function buildLlmsTxtPrompt(input: PromptInput): string {
     "",
     "【参考】株式会社あんどぷらすの llms.txt を手本にしてください。",
     `  ${ANDPLUS_LLMS_REF}`,
+    "  あんどぷらすの AI に対する思想は「嘘をつかせない」に集約されます（事実・証拠を優先し、誇張や捏造を避ける）。",
     "  - H1 でサイト・組織名とサブタイトル（例: LLM-First Information Hub）",
     "  - 直後の blockquote（1〜3 文）で「誰のためのファイルか」「一次情報の所在・権威」を書く",
     "  - ## 1. 2. 3. のように番号付きセクションで構成し、各セクションにリンクや説明を並べる",
@@ -70,7 +71,7 @@ export function buildLlmsTxtPrompt(input: PromptInput): string {
   lines.push(
     "",
     "出力は llms.txt にそのまま貼り付けできるプレーンテキスト（Markdown 形式）でお願いします。",
-    "事実ベースとし、誇張や価格の直書きは避けてください。"
+    "思想「嘘をつかせない」に沿い、事実ベースとし、誇張・捏造・価格の直書きは避けてください。"
   );
 
   return lines.join("\n");
