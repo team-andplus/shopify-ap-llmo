@@ -73,6 +73,12 @@ export const translations = {
     guideReadmePrimary: "1. 一次情報（Start Here）: 優先して読むべき内部ドキュメントのリストと、各ファイルの役割を1行で。",
     guideReadmeExternal: "2. 外部の証拠: 公式サイト・ポートフォリオ・ブログなどの URL と、何のためのリンクか短く説明。",
     guideReadmeGuidelines: "3. AI 向け解釈ガイド: 事実ベースで述べる・誇張を避ける・組織の位置づけを正確に、などの注記。",
+    openaiApiKeyLabel: "OpenAI API Key（任意・AI 生成で使用）",
+    openaiApiKeyPlaceholder: "sk-...（上書きする場合のみ入力）",
+    openaiApiKeySetNote: "設定済み。変更する場合のみ上記に入力してください。",
+    aiGenerate: "AI で生成",
+    aiGenerating: "生成中…",
+    aiErrorNoKey: "OpenAI API Key を設定してください。",
   },
   en: {
     appTitle: "AP LLMO",
@@ -142,6 +148,12 @@ export const translations = {
     guideReadmePrimary: "1. Primary references (Start Here): List of internal docs to read first, with a one-line role for each.",
     guideReadmeExternal: "2. External evidence: URLs to official site, portfolio, blog, etc., with a short note on what each is for.",
     guideReadmeGuidelines: "3. Interpretation guidelines for AI: Notes such as be fact-based, avoid exaggeration, describe the organization accurately.",
+    openaiApiKeyLabel: "OpenAI API Key (optional, for AI generation)",
+    openaiApiKeyPlaceholder: "sk-... (enter only to overwrite)",
+    openaiApiKeySetNote: "Key is set. Enter above only to change it.",
+    aiGenerate: "Generate with AI",
+    aiGenerating: "Generating…",
+    aiErrorNoKey: "Please set your OpenAI API Key.",
   },
 } as const;
 

@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Form, redirect, useLoaderData, useFetcher } from "react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
@@ -11,6 +11,8 @@ import {
   setLlmsTxtUrlMetafield,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
+import { getDecryptedOpenAiKey, generateLlmsTxtBody } from "../lib/openai.server";
+import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 
 const MAX_DOCS_AI_ROWS = 10;
@@ -59,6 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           llmsTxtBody: settings.llmsTxtBody ?? "",
           llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
           docsAiFiles,
+          openaiApiKeySet: !!settings.openaiApiKey,
         }
       : {
           siteType: "",
@@ -69,6 +72,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           llmsTxtBody: "",
           llmsTxtFileUrl: "",
           docsAiFiles: [] as DocsAiFileEntry[],
+          openaiApiKeySet: false,
         },
   };
 };
@@ -103,6 +107,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return Response.json({ prompt });
   }
 
+  if (intent === "generateLlmsTxt") {
+    const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
+    const docsAiFiles: { filename: string; fileUrl?: string | null }[] = [];
+    for (let i = 0; i < count; i++) {
+      const filename = (formData.get(`docsAiFilename_${i}`) as string)?.trim();
+      if (!filename) continue;
+      const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
+      docsAiFiles.push({ filename, fileUrl });
+    }
+    const prompt = buildLlmsTxtPrompt({
+      siteType: (formData.get("siteType") as string) ?? "",
+      title: (formData.get("title") as string) ?? "",
+      roleSummary: (formData.get("roleSummary") as string) ?? "",
+      sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
+      notesForAi: (formData.get("notesForAi") as string) ?? "",
+      docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
+    });
+    const apiKey = await getDecryptedOpenAiKey(shop);
+    if (!apiKey) {
+      return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+    }
+    const result = await generateLlmsTxtBody(prompt, apiKey);
+    if (!result.ok) {
+      return Response.json({ error: result.error ?? "OPENAI_ERROR" }, { status: 502 });
+    }
+    return Response.json({ body: result.body });
+  }
+
   if (intent === "save") {
     const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
     const docs: DocsAiFileEntry[] = [];
@@ -115,26 +147,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const uploadedDocs = await createOrUpdateDocsAiFiles(admin, docs);
 
+    const openaiApiKeyRaw = (formData.get("openaiApiKey") as string)?.trim() ?? "";
+    const openaiApiKeyEncrypted =
+      openaiApiKeyRaw.length > 0
+        ? (() => {
+            try {
+              return encrypt(openaiApiKeyRaw);
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+
+    const baseCreate = {
+      shop,
+      siteType: (formData.get("siteType") as string) || null,
+      title: (formData.get("title") as string) || null,
+      roleSummary: (formData.get("roleSummary") as string) || null,
+      sectionsOutline: (formData.get("sectionsOutline") as string) || null,
+      notesForAi: (formData.get("notesForAi") as string) || null,
+      llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+      docsAiFiles: JSON.stringify(uploadedDocs),
+    };
+    const baseUpdate = {
+      siteType: (formData.get("siteType") as string) || null,
+      title: (formData.get("title") as string) || null,
+      roleSummary: (formData.get("roleSummary") as string) || null,
+      sectionsOutline: (formData.get("sectionsOutline") as string) || null,
+      notesForAi: (formData.get("notesForAi") as string) || null,
+      llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+      docsAiFiles: JSON.stringify(uploadedDocs),
+    };
+
     await prisma.llmoSettings.upsert({
       where: { shop },
       create: {
-        shop,
-        siteType: (formData.get("siteType") as string) || null,
-        title: (formData.get("title") as string) || null,
-        roleSummary: (formData.get("roleSummary") as string) || null,
-        sectionsOutline: (formData.get("sectionsOutline") as string) || null,
-        notesForAi: (formData.get("notesForAi") as string) || null,
-        llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
-        docsAiFiles: JSON.stringify(uploadedDocs),
+        ...baseCreate,
+        ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
       },
       update: {
-        siteType: (formData.get("siteType") as string) || null,
-        title: (formData.get("title") as string) || null,
-        roleSummary: (formData.get("roleSummary") as string) || null,
-        sectionsOutline: (formData.get("sectionsOutline") as string) || null,
-        notesForAi: (formData.get("notesForAi") as string) || null,
-        llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
-        docsAiFiles: JSON.stringify(uploadedDocs),
+        ...baseUpdate,
+        ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
       },
     });
     return redirect(request.url);
@@ -231,10 +284,18 @@ const emptyDocRow = (): DocsAiFileEntry => ({
 export default function AppIndex() {
   const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
   const t = data.t;
-  const fetcher = useFetcher<{ prompt?: string }>();
+  const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; ok?: boolean; url?: string }>();
   const prompt = fetcher.data?.prompt;
   const isPromptLoading = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "getPrompt";
+  const isAiGenerating = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "generateLlmsTxt";
   const fileResult = fetcher.formData?.get("intent") === "saveFile" ? fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined : null;
+  const llmsTxtBodyRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.body && llmsTxtBodyRef.current) {
+      llmsTxtBodyRef.current.value = fetcher.data.body;
+    }
+  }, [fetcher.state, fetcher.data?.body]);
 
   const initialDocs =
     data.settings.docsAiFiles?.length > 0
@@ -367,6 +428,22 @@ export default function AppIndex() {
             />
           </label>
 
+          <label style={labelStyle}>
+            {t.openaiApiKeyLabel}
+            <input
+              type="password"
+              name="openaiApiKey"
+              style={inputStyle}
+              placeholder={t.openaiApiKeyPlaceholder}
+              autoComplete="off"
+            />
+            {data.settings.openaiApiKeySet && (
+              <span style={{ display: "block", fontSize: "0.8125rem", color: "#6d7175", marginTop: "0.25rem" }}>
+                {t.openaiApiKeySetNote}
+              </span>
+            )}
+          </label>
+
           {/* docs/ai 用 md：動的に行追加（最大10） */}
           <section style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e1e3e5" }}>
             <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.docsAiSectionTitle}</h3>
@@ -423,6 +500,7 @@ export default function AppIndex() {
           <label style={labelStyle}>
             {t.llmsTxtBodyLabel}
             <textarea
+              ref={llmsTxtBodyRef}
               name="llmsTxtBody"
               form="llmo-form"
               style={{ ...textareaStyle, minHeight: "200px" }}
@@ -430,6 +508,12 @@ export default function AppIndex() {
               placeholder={t.llmsTxtBodyPlaceholder}
             />
           </label>
+
+          {fetcher.data?.error && fetcher.formData?.get("intent") === "generateLlmsTxt" && (
+            <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
+              {fetcher.data.error === "API_KEY_REQUIRED" ? t.aiErrorNoKey : t.error}
+            </p>
+          )}
 
           <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button type="submit" style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}>
@@ -448,6 +532,20 @@ export default function AppIndex() {
               disabled={isPromptLoading}
             >
               {isPromptLoading ? t.generating : t.generatePrompt}
+            </button>
+            <button
+              type="button"
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              onClick={() => {
+                const form = document.getElementById("llmo-form") as HTMLFormElement;
+                if (!form) return;
+                const fd = new FormData(form);
+                fd.set("intent", "generateLlmsTxt");
+                fetcher.submit(fd, { method: "post" });
+              }}
+              disabled={isAiGenerating}
+            >
+              {isAiGenerating ? t.aiGenerating : t.aiGenerate}
             </button>
             <button
               type="button"

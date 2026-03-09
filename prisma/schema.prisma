@@ -43,6 +43,7 @@ model LlmoSettings {
   llmsTxtFileUrl   String?  // Files API で作成したファイルの CDN URL（head 参照用）
   llmsTxtFileId    String?  // 更新用の file id（fileUpdate 用）
   docsAiFiles      String?  // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
+  openaiApiKey     String?  // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

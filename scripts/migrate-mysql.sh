@@ -17,6 +17,7 @@ SCHEMA="$ROOT/prisma-mysql/schema.prisma"
 MIGRATION2="$MIGRATIONS_MYSQL/20250308100000_add_llmo_settings/migration.sql"
 MIGRATION3="$MIGRATIONS_MYSQL/20250308110000_llmo_thought_protocol/migration.sql"
 MIGRATION4="$MIGRATIONS_MYSQL/20250308120000_add_docs_ai_files/migration.sql"
+MIGRATION5="$MIGRATIONS_MYSQL/20250308130000_add_openai_api_key/migration.sql"
 
 # 既存の prisma/migrations を退避（prisma-mysql への symlink でない場合）
 if [ -d "$MIGRATIONS_ORIG" ] && [ ! -L "$MIGRATIONS_ORIG" ]; then
@@ -52,6 +53,11 @@ fi
 if [ -f "$MIGRATION4" ]; then
   if prisma db execute --file "$MIGRATION4" --schema="$SCHEMA" 2>/dev/null; then
     echo "[migrate-mysql] Applied 20250308120000_add_docs_ai_files (docsAiFiles column)."
+  fi
+fi
+if [ -f "$MIGRATION5" ]; then
+  if prisma db execute --file "$MIGRATION5" --schema="$SCHEMA" 2>/dev/null; then
+    echo "[migrate-mysql] Applied 20250308130000_add_openai_api_key (openaiApiKey column)."
   fi
 fi
 # 上記で何も表示されていなければ、いずれも適用済み（正常）
