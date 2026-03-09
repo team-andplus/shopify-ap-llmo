@@ -513,6 +513,17 @@ export default function AppIndex() {
         </section>
 
         <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.guideReadmeTitle}</h2>
+          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>{t.guideReadmeIntro}</p>
+          <ul style={{ ...listStyle, margin: 0, fontSize: "0.8125rem", lineHeight: 1.6 }}>
+            <li>{t.guideReadmeWelcome}</li>
+            <li>{t.guideReadmePrimary}</li>
+            <li>{t.guideReadmeExternal}</li>
+            <li>{t.guideReadmeGuidelines}</li>
+          </ul>
+        </section>
+
+        <section style={sectionStyle}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.whatThisAppDoes}</h2>
           <ul style={listStyle}>
             <li>

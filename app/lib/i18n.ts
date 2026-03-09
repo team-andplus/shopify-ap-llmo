@@ -66,6 +66,12 @@ export const translations = {
     statusLlmsTxtSet: "llms.txt 設置済み",
     statusLlmsTxtNotSet: "llms.txt 未設置",
     statusDocsAiCount: "docs/ai: {count} 件",
+    guideReadmeTitle: "README.md の書き方",
+    guideReadmeIntro: "docs/ai の索引として、以下のような構成を推奨します。",
+    guideReadmeWelcome: "冒頭: 「Welcome, AI agent」＋このディレクトリの目的（1〜2文）。一次情報の所在を明示。",
+    guideReadmePrimary: "1. 一次情報（Start Here）: 優先して読むべき内部ドキュメントのリストと、各ファイルの役割を1行で。",
+    guideReadmeExternal: "2. 外部の証拠: 公式サイト・ポートフォリオ・ブログなどの URL と、何のためのリンクか短く説明。",
+    guideReadmeGuidelines: "3. AI 向け解釈ガイド: 事実ベースで述べる・誇張を避ける・組織の位置づけを正確に、などの注記。",
   },
   en: {
     appTitle: "AP LLMO",
@@ -128,6 +134,12 @@ export const translations = {
     statusLlmsTxtSet: "llms.txt set",
     statusLlmsTxtNotSet: "llms.txt not set",
     statusDocsAiCount: "docs/ai: {count} file(s)",
+    guideReadmeTitle: "How to write README.md",
+    guideReadmeIntro: "As the index for docs/ai, we recommend a structure like the following.",
+    guideReadmeWelcome: "Opening: “Welcome, AI agent” + purpose of this directory (1–2 sentences). Make first-party sources explicit.",
+    guideReadmePrimary: "1. Primary references (Start Here): List of internal docs to read first, with a one-line role for each.",
+    guideReadmeExternal: "2. External evidence: URLs to official site, portfolio, blog, etc., with a short note on what each is for.",
+    guideReadmeGuidelines: "3. Interpretation guidelines for AI: Notes such as be fact-based, avoid exaggeration, describe the organization accurately.",
   },
 } as const;
 
