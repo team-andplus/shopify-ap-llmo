@@ -59,6 +59,8 @@ export const translations = {
     docsAiContent: "本文（Markdown）",
     addRow: "行を追加",
     removeRow: "削除",
+    footerContact: "お問い合わせ",
+    footerPrivacy: "プライバシーポリシー",
   },
   en: {
     appTitle: "AP LLMO",
@@ -114,6 +116,8 @@ export const translations = {
     docsAiContent: "Content (Markdown)",
     addRow: "Add row",
     removeRow: "Remove",
+    footerContact: "Contact",
+    footerPrivacy: "Privacy policy",
   },
 } as const;
 

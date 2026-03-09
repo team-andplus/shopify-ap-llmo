@@ -4,6 +4,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { getAppRedirectBase } from "../lib/redirect-url.server";
+import { getLocaleFromRequest, getTranslations } from "../lib/i18n";
 
 /** App Bridge Next が shop を読むために head に meta を出す（script より前に必要） */
 export function meta({
@@ -29,7 +30,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const apiKey = process.env.SHOPIFY_API_KEY ?? "";
     const sessionShop = session?.shop ?? "";
     const storeUrl = sessionShop ? `https://${sessionShop}` : "";
-    return { apiKey, shop: sessionShop, storeUrl };
+    const locale = getLocaleFromRequest(request);
+    return { apiKey, shop: sessionShop, storeUrl, locale };
   } catch (err) {
     console.error("[ap-llmo] app layout loader error:", err);
     // 認証失敗時は 403 ではなく /auth へリダイレクト（再ログインで解消するため）
@@ -40,9 +42,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function AppLayout() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, locale } = useLoaderData<typeof loader>();
   const location = useLocation();
   const outlet = useOutlet();
+  const t = getTranslations(locale);
   const content = outlet ?? (
     <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
   );
@@ -69,10 +72,10 @@ export default function AppLayout() {
         }}
       >
         <a href="https://www.andplus.co.jp/contact/work/" target="_blank" rel="noopener noreferrer" style={{ marginRight: "1rem" }}>
-          お問い合わせ
+          {t.footerContact}
         </a>
         <a href="https://www.andplus.co.jp/privacy/" target="_blank" rel="noopener noreferrer" style={{ marginRight: "1rem" }}>
-          プライバシーポリシー
+          {t.footerPrivacy}
         </a>
         <span style={{ marginLeft: "1rem" }}>
           <Link to={`${path}?${searchJa.toString()}`} style={{ marginRight: "0.5rem" }}>日本語</Link>
