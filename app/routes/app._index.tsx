@@ -508,11 +508,14 @@ export default function AppIndex() {
 
           <label style={labelStyle}>
             {t.llmsTxtBodyLabel}
+            <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
+              {t.llmsTxtBodyHint}
+            </p>
             <textarea
               ref={llmsTxtBodyRef}
               name="llmsTxtBody"
               form="llmo-form"
-              style={{ ...textareaStyle, minHeight: "200px" }}
+              style={{ ...textareaStyle, minHeight: "200px", marginTop: "0.5rem" }}
               defaultValue={data.settings.llmsTxtBody}
               placeholder={t.llmsTxtBodyPlaceholder}
             />
@@ -579,7 +582,7 @@ export default function AppIndex() {
         </Form>
       </section>
 
-      {/* プロンプト表示・コピー */}
+      {/* プロンプト表示・コピー・AI への渡し方案内 */}
       {prompt != null && (
         <section style={{ ...sectionStyle, marginTop: "1rem" }}>
           <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.generatedPromptTitle}</h2>
@@ -594,6 +597,9 @@ export default function AppIndex() {
           >
             {t.copy}
           </button>
+          <p style={{ marginTop: "0.75rem", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.6 }}>
+            {t.promptToAiGuide}
+          </p>
         </section>
       )}
 
