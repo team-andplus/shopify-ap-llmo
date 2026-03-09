@@ -108,31 +108,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "generateLlmsTxt") {
-    const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
-    const docsAiFiles: { filename: string; fileUrl?: string | null }[] = [];
-    for (let i = 0; i < count; i++) {
-      const filename = (formData.get(`docsAiFilename_${i}`) as string)?.trim();
-      if (!filename) continue;
-      const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
-      docsAiFiles.push({ filename, fileUrl });
+    try {
+      const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
+      const docsAiFiles: { filename: string; fileUrl?: string | null }[] = [];
+      for (let i = 0; i < count; i++) {
+        const filename = (formData.get(`docsAiFilename_${i}`) as string)?.trim();
+        if (!filename) continue;
+        const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
+        docsAiFiles.push({ filename, fileUrl });
+      }
+      const prompt = buildLlmsTxtPrompt({
+        siteType: (formData.get("siteType") as string) ?? "",
+        title: (formData.get("title") as string) ?? "",
+        roleSummary: (formData.get("roleSummary") as string) ?? "",
+        sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
+        notesForAi: (formData.get("notesForAi") as string) ?? "",
+        docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
+      });
+      const apiKey = await getDecryptedOpenAiKey(shop);
+      if (!apiKey) {
+        return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+      }
+      const result = await generateLlmsTxtBody(prompt, apiKey);
+      if (!result.ok) {
+        return Response.json({ error: result.error ?? "OPENAI_ERROR" }, { status: 502 });
+      }
+      return Response.json({ body: result.body });
+    } catch (err) {
+      console.error("[ap-llmo] generateLlmsTxt error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      return Response.json(
+        { error: "GENERATE_FAILED", message: message.slice(0, 200) },
+        { status: 500 }
+      );
     }
-    const prompt = buildLlmsTxtPrompt({
-      siteType: (formData.get("siteType") as string) ?? "",
-      title: (formData.get("title") as string) ?? "",
-      roleSummary: (formData.get("roleSummary") as string) ?? "",
-      sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
-      notesForAi: (formData.get("notesForAi") as string) ?? "",
-      docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
-    });
-    const apiKey = await getDecryptedOpenAiKey(shop);
-    if (!apiKey) {
-      return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
-    }
-    const result = await generateLlmsTxtBody(prompt, apiKey);
-    if (!result.ok) {
-      return Response.json({ error: result.error ?? "OPENAI_ERROR" }, { status: 502 });
-    }
-    return Response.json({ body: result.body });
   }
 
   if (intent === "save") {
@@ -284,7 +293,7 @@ const emptyDocRow = (): DocsAiFileEntry => ({
 export default function AppIndex() {
   const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
   const t = data.t;
-  const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; ok?: boolean; url?: string }>();
+  const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; message?: string; ok?: boolean; url?: string }>();
   const prompt = fetcher.data?.prompt;
   const isPromptLoading = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "getPrompt";
   const isAiGenerating = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "generateLlmsTxt";
@@ -511,7 +520,13 @@ export default function AppIndex() {
 
           {fetcher.data?.error && fetcher.formData?.get("intent") === "generateLlmsTxt" && (
             <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
-              {fetcher.data.error === "API_KEY_REQUIRED" ? t.aiErrorNoKey : t.error}
+              {fetcher.data.error === "API_KEY_REQUIRED"
+                ? t.aiErrorNoKey
+                : fetcher.data.error === "GENERATE_FAILED"
+                  ? fetcher.data.message
+                    ? `${t.aiErrorFailed} ${fetcher.data.message}`
+                    : t.aiErrorFailed
+                  : t.error}
             </p>
           )}
 

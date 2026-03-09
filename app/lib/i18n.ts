@@ -79,6 +79,7 @@ export const translations = {
     aiGenerate: "AI で生成",
     aiGenerating: "生成中…",
     aiErrorNoKey: "OpenAI API Key を設定してください。",
+    aiErrorFailed: "AI 生成に失敗しました。",
   },
   en: {
     appTitle: "AP LLMO",
@@ -154,6 +155,7 @@ export const translations = {
     aiGenerate: "Generate with AI",
     aiGenerating: "Generating…",
     aiErrorNoKey: "Please set your OpenAI API Key.",
+    aiErrorFailed: "AI generation failed.",
   },
 } as const;
 
