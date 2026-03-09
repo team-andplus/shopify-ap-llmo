@@ -127,3 +127,28 @@ export function parseLocale(value: string | null): Locale {
   if (value === "en") return "en";
   return "ja";
 }
+
+const SUPPORTED_LOCALES: Locale[] = ["ja", "en"];
+
+/**
+ * リクエストから表示言語を決定（SchemaBridge 準拠）
+ * - URL の ?locale=ja | en を最優先
+ * - 次に Accept-Language（ja / en を許容）
+ * - 未指定時は ja
+ */
+export function getLocaleFromRequest(request: Request): Locale {
+  const url = new URL(request.url);
+  const param = url.searchParams.get("locale");
+  if (param === "ja" || param === "en") return param;
+  const accept = request.headers.get("Accept-Language");
+  if (accept) {
+    const first = accept.split(",")[0]?.toLowerCase().slice(0, 2);
+    if (first === "ja") return "ja";
+    if (first === "en") return "en";
+  }
+  return "ja";
+}
+
+export function isValidLocale(value: string): value is Locale {
+  return SUPPORTED_LOCALES.includes(value as Locale);
+}

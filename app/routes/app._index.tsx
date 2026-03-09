@@ -11,7 +11,7 @@ import {
   setLlmsTxtUrlMetafield,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
-import { getTranslations, parseLocale } from "../lib/i18n";
+import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 
 const MAX_DOCS_AI_ROWS = 10;
 
@@ -37,8 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop ?? "";
   const storeUrl = shop ? `https://${shop}` : "";
-  const url = new URL(request.url);
-  const locale = parseLocale(url.searchParams.get("locale"));
+  const locale = getLocaleFromRequest(request);
 
   const settings = shop
     ? await prisma.llmoSettings.findUnique({ where: { shop } })
@@ -262,18 +261,9 @@ export default function AppIndex() {
     }
   };
 
-  const localeParam = data.locale === "en" ? "?locale=en" : "";
-
   return (
     <div style={{ padding: "2rem", maxWidth: "720px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", margin: 0 }}>{t.appTitle}</h1>
-        <span style={{ fontSize: "0.875rem" }}>
-          <a href={localeParam || "?"} style={{ color: "#6d7175", textDecoration: "none" }}>{data.locale === "ja" ? "日本語" : "JA"}</a>
-          {" · "}
-          <a href={data.locale === "en" ? "?" : "?locale=en"} style={{ color: "#6d7175", textDecoration: "none" }}>{data.locale === "en" ? "English" : "EN"}</a>
-        </span>
-      </div>
+      <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{t.appTitle}</h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
         {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}
       </p>

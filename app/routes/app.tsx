@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, Outlet, useLoaderData, useOutlet, useRouteError, redirect } from "react-router";
+import { Link, Outlet, useLoaderData, useLocation, useOutlet, useRouteError, redirect } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
@@ -41,10 +41,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function AppLayout() {
   const { apiKey } = useLoaderData<typeof loader>();
+  const location = useLocation();
   const outlet = useOutlet();
   const content = outlet ?? (
     <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
   );
+
+  const path = location.pathname || "/app";
+  const searchJa = new URLSearchParams(location.search);
+  searchJa.set("locale", "ja");
+  const searchEn = new URLSearchParams(location.search);
+  searchEn.set("locale", "en");
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -54,19 +61,23 @@ export default function AppLayout() {
       {content}
       <footer
         style={{
-          marginTop: "2rem",
-          padding: "1rem",
-          borderTop: "1px solid #e1e3e5",
-          fontSize: "0.75rem",
-          color: "#6d7175",
+          marginTop: "var(--p-space-800, 2rem)",
+          padding: "var(--p-space-400, 1rem) var(--p-space-600, 1.5rem)",
+          borderTop: "1px solid var(--p-color-border-secondary, #e1e3e5)",
+          fontSize: "var(--p-font-size-200, 0.75rem)",
+          color: "var(--p-color-text-secondary, #6d7175)",
         }}
       >
         <a href="https://www.andplus.co.jp/contact/work/" target="_blank" rel="noopener noreferrer" style={{ marginRight: "1rem" }}>
           お問い合わせ
         </a>
-        <a href="https://www.andplus.co.jp/privacy/" target="_blank" rel="noopener noreferrer">
+        <a href="https://www.andplus.co.jp/privacy/" target="_blank" rel="noopener noreferrer" style={{ marginRight: "1rem" }}>
           プライバシーポリシー
         </a>
+        <span style={{ marginLeft: "1rem" }}>
+          <Link to={`${path}?${searchJa.toString()}`} style={{ marginRight: "0.5rem" }}>日本語</Link>
+          <Link to={`${path}?${searchEn.toString()}`}>English</Link>
+        </span>
       </footer>
     </AppProvider>
   );
