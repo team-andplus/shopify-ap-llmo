@@ -58,9 +58,6 @@ export default function AppLayout() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <nav style={{ padding: "1rem", borderBottom: "1px solid #e1e3e5" }}>
-        <Link to="/app">AP LLMO</Link>
-      </nav>
       {content}
       <footer
         style={{
