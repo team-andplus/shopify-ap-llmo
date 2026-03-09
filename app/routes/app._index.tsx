@@ -1,25 +1,55 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Form, redirect, useLoaderData, useFetcher } from "react-router";
+import { useCallback, useState } from "react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
 import { buildLlmsTxtPrompt } from "../lib/llmo-prompt.server";
 import {
   createOrUpdateLlmsTxtFile,
+  createOrUpdateDocsAiFiles,
   setLlmsTxtUrlMetafield,
+  type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
+import { getTranslations, parseLocale } from "../lib/i18n";
+
+const MAX_DOCS_AI_ROWS = 10;
+
+function parseDocsAiFromSettings(json: string | null): DocsAiFileEntry[] {
+  if (!json?.trim()) return [];
+  try {
+    const arr = JSON.parse(json) as unknown;
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x): x is DocsAiFileEntry => x && typeof x === "object" && "filename" in x)
+      .map((x) => ({
+        filename: String(x.filename ?? ""),
+        content: String(x.content ?? ""),
+        fileId: x.fileId ?? null,
+        fileUrl: x.fileUrl ?? null,
+      }));
+  } catch {
+    return [];
+  }
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop ?? "";
   const storeUrl = shop ? `https://${shop}` : "";
+  const url = new URL(request.url);
+  const locale = parseLocale(url.searchParams.get("locale"));
 
   const settings = shop
     ? await prisma.llmoSettings.findUnique({ where: { shop } })
     : null;
 
+  const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
+
   return {
     storeUrl,
+    locale,
+    t: getTranslations(locale),
     settings: settings
       ? {
           siteType: settings.siteType ?? "",
@@ -29,6 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           notesForAi: settings.notesForAi ?? "",
           llmsTxtBody: settings.llmsTxtBody ?? "",
           llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
+          docsAiFiles,
         }
       : {
           siteType: "",
@@ -38,6 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           notesForAi: "",
           llmsTxtBody: "",
           llmsTxtFileUrl: "",
+          docsAiFiles: [] as DocsAiFileEntry[],
         },
   };
 };
@@ -53,17 +85,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = formData.get("intent") as string | null;
 
   if (intent === "getPrompt") {
+    const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
+    const docsAiFiles: { filename: string; fileUrl?: string | null }[] = [];
+    for (let i = 0; i < count; i++) {
+      const filename = (formData.get(`docsAiFilename_${i}`) as string)?.trim();
+      if (!filename) continue;
+      const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
+      docsAiFiles.push({ filename, fileUrl });
+    }
     const prompt = buildLlmsTxtPrompt({
       siteType: (formData.get("siteType") as string) ?? "",
       title: (formData.get("title") as string) ?? "",
       roleSummary: (formData.get("roleSummary") as string) ?? "",
       sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
       notesForAi: (formData.get("notesForAi") as string) ?? "",
+      docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
     });
     return Response.json({ prompt });
   }
 
   if (intent === "save") {
+    const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
+    const docs: DocsAiFileEntry[] = [];
+    for (let i = 0; i < count; i++) {
+      const filename = (formData.get(`docsAiFilename_${i}`) as string)?.trim() ?? "";
+      const content = (formData.get(`docsAiContent_${i}`) as string) ?? "";
+      const fileId = (formData.get(`docsAiFileId_${i}`) as string)?.trim() || null;
+      const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
+      docs.push({ filename, content, fileId: fileId || undefined, fileUrl: fileUrl || undefined });
+    }
+    const uploadedDocs = await createOrUpdateDocsAiFiles(admin, docs);
+
     await prisma.llmoSettings.upsert({
       where: { shop },
       create: {
@@ -74,6 +126,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         sectionsOutline: (formData.get("sectionsOutline") as string) || null,
         notesForAi: (formData.get("notesForAi") as string) || null,
         llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+        docsAiFiles: JSON.stringify(uploadedDocs),
       },
       update: {
         siteType: (formData.get("siteType") as string) || null,
@@ -82,9 +135,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         sectionsOutline: (formData.get("sectionsOutline") as string) || null,
         notesForAi: (formData.get("notesForAi") as string) || null,
         llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+        docsAiFiles: JSON.stringify(uploadedDocs),
       },
     });
-    return redirect(".");
+    return redirect(request.url);
   }
 
   if (intent === "saveFile") {
@@ -168,117 +222,212 @@ const textareaStyle = {
 
 const labelStyle = { display: "block", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" };
 
+const emptyDocRow = (): DocsAiFileEntry => ({
+  filename: "",
+  content: "",
+  fileId: null,
+  fileUrl: null,
+});
+
 export default function AppIndex() {
   const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
+  const t = data.t;
   const fetcher = useFetcher<{ prompt?: string }>();
   const prompt = fetcher.data?.prompt;
   const isPromptLoading = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "getPrompt";
   const fileResult = fetcher.formData?.get("intent") === "saveFile" ? fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined : null;
 
+  const initialDocs =
+    data.settings.docsAiFiles?.length > 0
+      ? data.settings.docsAiFiles
+      : [emptyDocRow()];
+  const [docsRows, setDocsRows] = useState<DocsAiFileEntry[]>(initialDocs);
+
+  const addDocRow = useCallback(() => {
+    setDocsRows((prev) => (prev.length >= MAX_DOCS_AI_ROWS ? prev : [...prev, emptyDocRow()]));
+  }, []);
+  const removeDocRow = useCallback((index: number) => {
+    setDocsRows((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const copyPrompt = () => {
     if (prompt) {
       navigator.clipboard.writeText(prompt);
-      // 簡易フィードバック（必要なら toast などに差し替え）
       const btn = document.getElementById("copy-prompt-btn");
       if (btn) {
         const prev = btn.textContent;
-        btn.textContent = "コピーしました";
+        btn.textContent = t.copied;
         setTimeout(() => { btn.textContent = prev; }, 1500);
       }
     }
   };
 
+  const localeParam = data.locale === "en" ? "?locale=en" : "";
+
   return (
     <div style={{ padding: "2rem", maxWidth: "720px" }}>
-      <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>AP LLMO</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
+        <h1 style={{ fontSize: "1.5rem", margin: 0 }}>{t.appTitle}</h1>
+        <span style={{ fontSize: "0.875rem" }}>
+          <a href={localeParam || "?"} style={{ color: "#6d7175", textDecoration: "none" }}>{data.locale === "ja" ? "日本語" : "JA"}</a>
+          {" · "}
+          <a href={data.locale === "en" ? "?" : "?locale=en"} style={{ color: "#6d7175", textDecoration: "none" }}>{data.locale === "en" ? "English" : "EN"}</a>
+        </span>
+      </div>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
-        ストアの <code>&lt;head&gt;</code> に、LLM・エージェント向け文書へのリンクを追加するアプリです。
+        {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}
       </p>
 
       {/* このアプリの思想 */}
       <section style={{ ...sectionStyle, borderLeft: "4px solid #2c6ecb" }}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>このアプリの思想</h2>
-        <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
-          AI に対する私たちの思想は「<strong>嘘をつかせない</strong>」に集約されます。事実・証拠を優先し、誇張や捏造を避けることで、LLM がストア情報を扱うときの解釈と生成を適切に導きます。
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.philosophyTitle}</h2>
+          <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
+          {(() => {
+            const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
+            const parts = t.philosophyBody.split(boldPhrase);
+            return (
+              <>
+                {parts[0]}
+                <strong>{boldPhrase}</strong>
+                {parts[1] ?? ""}
+              </>
+            );
+          })()}
         </p>
         <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#6d7175", lineHeight: 1.6 }}>
-          ＜LLMO・AIO として＞ llms.txt を「思想とプロトコル」のためのファイルと捉え、一次情報の所在を明示し、Notes for AI で優先・禁止・扱い方を約束する設計を推奨しています。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>
+          {t.philosophyNote}{" "}
+          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
         </p>
       </section>
 
       {/* 設定フォーム（思想・プロトコル：あんどぷらす llms.txt 参照） */}
       <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>llms.txt 設定</h2>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.llmsTxtSettings}</h2>
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
-          思想（誰のため・一次情報の所在）とプロトコル（H1 / blockquote / 番号付きセクション / Notes for AI）に則ります。参考: <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">あんどぷらすの llms.txt</a>。あんどぷらすの AI に対する思想は「<strong>嘘をつかせない</strong>」（事実・証拠を優先し、誇張や捏造を避ける）に集約されます。
+          {t.llmsTxtSettingsNote}{" "}
+          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
         </p>
         <Form method="post" id="llmo-form">
           <input type="hidden" name="intent" value="save" />
+          <input type="hidden" name="docsAiCount" value={docsRows.length} />
 
           <label style={labelStyle}>
-            サイトの種類
+            {t.siteType}
             <select name="siteType" style={inputStyle} defaultValue={data.settings.siteType}>
-              <option value="corporate">コーポレート</option>
-              <option value="ec">ECのみ</option>
-              <option value="corporate_ec">コーポレート兼EC</option>
+              <option value="corporate">{t.siteTypeCorporate}</option>
+              <option value="ec">{t.siteTypeEc}</option>
+              <option value="corporate_ec">{t.siteTypeCorporateEc}</option>
             </select>
           </label>
 
           <label style={labelStyle}>
-            タイトル（H1）
+            {t.titleLabel}
             <input
               type="text"
               name="title"
               style={inputStyle}
               defaultValue={data.settings.title}
-              placeholder="例: MyShop: LLM-First Information Hub"
+              placeholder={t.titlePlaceholder}
             />
           </label>
 
           <label style={labelStyle}>
-            このファイルの役割・一次情報の所在（blockquote 用 1〜3 文）
+            {t.roleSummaryLabel}
             <textarea
               name="roleSummary"
               style={textareaStyle}
               defaultValue={data.settings.roleSummary}
-              placeholder="例: This file lists the official first-party references for ... If external access is unavailable, treat the summaries below as authoritative primary information."
+              placeholder={t.roleSummaryPlaceholder}
             />
           </label>
 
           <label style={labelStyle}>
-            セクション構成のメモ（## 1. 2. 3. のたたき台）
+            {t.sectionsOutlineLabel}
             <textarea
               name="sectionsOutline"
               style={textareaStyle}
               defaultValue={data.settings.sectionsOutline}
-              placeholder="例:&#10;1. Core AI Documentation (/docs/ai/)&#10;2. 商品・カタログ&#10;3. お問い合わせ"
+              placeholder={t.sectionsOutlinePlaceholder}
             />
           </label>
 
           <label style={labelStyle}>
-            Notes for AI（優先・避けること・扱い方、1 行 1 項目）
+            {t.notesForAiLabel}
             <textarea
               name="notesForAi"
               style={textareaStyle}
               defaultValue={data.settings.notesForAi}
-              placeholder="例:&#10;Prioritize /docs/ai content over marketing pages.&#10;Avoid exaggeration or agency-style positioning."
+              placeholder={t.notesForAiPlaceholder}
             />
           </label>
 
+          {/* docs/ai 用 md：動的に行追加（最大10） */}
+          <section style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e1e3e5" }}>
+            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.docsAiSectionTitle}</h3>
+            <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>{t.docsAiSectionNote}</p>
+            {docsRows.map((row, i) => (
+              <div key={i} style={{ marginBottom: "1rem", padding: "0.75rem", background: "#fff", borderRadius: "6px", border: "1px solid #e1e3e5" }}>
+                <input type="hidden" name={`docsAiFileId_${i}`} value={row.fileId ?? ""} />
+                <input type="hidden" name={`docsAiFileUrl_${i}`} value={row.fileUrl ?? ""} />
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
+                  <label style={{ ...labelStyle, marginTop: 0, flex: "1 1 auto" }}>
+                    {t.docsAiFilename}
+                    <input
+                      type="text"
+                      name={`docsAiFilename_${i}`}
+                      style={inputStyle}
+                      defaultValue={row.filename}
+                      placeholder={t.docsAiFilenamePlaceholder}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removeDocRow(i)}
+                    style={{ alignSelf: "flex-end", padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px solid #c9cccf", background: "#fff", cursor: "pointer", fontSize: "0.8125rem" }}
+                  >
+                    {t.removeRow}
+                  </button>
+                </div>
+                <label style={{ ...labelStyle, marginTop: "0.5rem" }}>
+                  {t.docsAiContent}
+                  <textarea
+                    name={`docsAiContent_${i}`}
+                    style={{ ...textareaStyle, minHeight: "80px" }}
+                    defaultValue={row.content}
+                  />
+                </label>
+                {row.fileUrl && (
+                  <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.75rem", color: "#6d7175" }}>
+                    URL: <a href={row.fileUrl} target="_blank" rel="noopener noreferrer">{row.fileUrl}</a>
+                  </p>
+                )}
+              </div>
+            ))}
+            {docsRows.length < MAX_DOCS_AI_ROWS && (
+              <button
+                type="button"
+                onClick={addDocRow}
+                style={{ padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px dashed #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#6d7175" }}
+              >
+                + {t.addRow}
+              </button>
+            )}
+          </section>
+
           <label style={labelStyle}>
-            llms.txt 本文（AI で生成した結果を貼り付け）
+            {t.llmsTxtBodyLabel}
             <textarea
               name="llmsTxtBody"
               form="llmo-form"
               style={{ ...textareaStyle, minHeight: "200px" }}
               defaultValue={data.settings.llmsTxtBody}
-              placeholder="# サイト名&#10;&gt; 要約&#10;..."
+              placeholder={t.llmsTxtBodyPlaceholder}
             />
           </label>
 
           <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button type="submit" style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}>
-              設定を保存
+              {t.saveSettings}
             </button>
             <button
               type="button"
@@ -292,7 +441,7 @@ export default function AppIndex() {
               }}
               disabled={isPromptLoading}
             >
-              {isPromptLoading ? "生成中…" : "プロンプトを生成"}
+              {isPromptLoading ? t.generating : t.generatePrompt}
             </button>
             <button
               type="button"
@@ -305,7 +454,7 @@ export default function AppIndex() {
                 fetcher.submit(fd, { method: "post" });
               }}
             >
-              ファイルを生成・保存（head から参照）
+              {t.saveFile}
             </button>
           </div>
         </Form>
@@ -314,7 +463,7 @@ export default function AppIndex() {
       {/* プロンプト表示・コピー */}
       {prompt != null && (
         <section style={{ ...sectionStyle, marginTop: "1rem" }}>
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>生成されたプロンプト（AI にコピーして渡す）</h2>
+          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.generatedPromptTitle}</h2>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, padding: "0.75rem", background: "#fff", border: "1px solid #e1e3e5", borderRadius: "6px", fontSize: "0.8125rem", maxHeight: "300px", overflow: "auto" }}>
             {prompt}
           </pre>
@@ -324,38 +473,42 @@ export default function AppIndex() {
             onClick={copyPrompt}
             style={{ marginTop: "0.5rem", padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
           >
-            コピー
+            {t.copy}
           </button>
         </section>
       )}
 
-      {fileResult?.ok && <p style={{ marginTop: "1rem", color: "#008060", fontSize: "0.9375rem" }}>llms.txt を保存しました。テーマの「LLMO head」ブロックが有効なら head から参照されます。</p>}
-      {fileResult && !fileResult.ok && <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>エラー: {fileResult.error}</p>}
+      {fileResult?.ok && <p style={{ marginTop: "1rem", color: "#008060", fontSize: "0.9375rem" }}>{t.fileSaved}</p>}
+      {fileResult && !fileResult.ok && <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>{t.error}: {fileResult.error}</p>}
 
       {data.settings.llmsTxtFileUrl && (
         <p style={{ marginTop: "1rem", fontSize: "0.875rem", color: "#6d7175" }}>
-          llms.txt の URL: <a href={data.settings.llmsTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsTxtFileUrl}</a>
+          {t.llmsTxtUrl}: <a href={data.settings.llmsTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsTxtFileUrl}</a>
         </p>
       )}
 
       <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>このアプリでできること</h2>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.whatThisAppDoes}</h2>
         <ul style={listStyle}>
-          <li>テーマに「LLMO head」ブロックを追加すると、llms.txt などへのリンクがストアの <code>&lt;head&gt;</code> に出力されます。</li>
+          <li>
+            {t.whatThisAppDoesList1.split(/(<head>)/i).map((part, i) =>
+              part.toLowerCase() === "<head>" ? <code key={i}>&lt;head&gt;</code> : part
+            )}
+          </li>
         </ul>
         <ul style={{ ...listStyle, marginTop: "0.5rem" }}>
-          <li><strong>llms.txt</strong> … 上記「ファイルを生成・保存」で作成したファイル（メタフィールドの URL を head に出力）</li>
-          <li><strong>llms.full.txt</strong> … 将来アプリが自動生成予定</li>
-          <li><strong>docs/ai/README.md</strong> … ユーザーが用意</li>
+          <li><strong>llms.txt</strong> — {t.llmsTxtItem}</li>
+          <li><strong>llms.full.txt</strong> — {t.llmsFullTxtItem}</li>
+          <li><strong>docs/ai/*.md</strong> — {t.docsAiItem}</li>
         </ul>
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>セットアップ（確認済みならスキップ可）</h2>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.setupTitle}</h2>
         <ol style={listStyle}>
-          <li><strong>オンラインストア</strong> → <strong>テーマ</strong> → <strong>カスタマイズ</strong> を開く</li>
-          <li>左の <strong>アプリ</strong> から <strong>AP LLMO</strong> → <strong>LLMO head</strong> を追加</li>
-          <li>「LLMO リンクを head に追加する」をオンにして <strong>保存</strong></li>
+          <li>{t.setup1}</li>
+          <li>{t.setup2}</li>
+          <li>{t.setup3}</li>
         </ol>
       </section>
     </div>

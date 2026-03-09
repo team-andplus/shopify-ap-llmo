@@ -42,6 +42,7 @@ model LlmoSettings {
   llmsTxtBody      String?  // AI が生成した llms.txt 本文（貼り付け用）
   llmsTxtFileUrl   String?  // Files API で作成したファイルの CDN URL（head 参照用）
   llmsTxtFileId    String?  // 更新用の file id（fileUpdate 用）
+  docsAiFiles      String?  // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

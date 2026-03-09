@@ -4,12 +4,17 @@
  * 思想（誰のため・一次情報の所在・優先/禁止）とプロトコル（H1, blockquote, 番号付きセクション, Notes for AI）に則る。
  */
 
+/** llms.txt プロンプト生成時に参照させる docs/ai 用ファイル（URL ありなら llms.txt にリンクを書くよう指示） */
+export type DocsAiRef = { filename: string; fileUrl?: string | null };
+
 export type PromptInput = {
   siteType: string;
   title: string;
   roleSummary: string;
   sectionsOutline: string;
   notesForAi: string;
+  /** docs/ai 用 md 一覧。llms.txt から参照する旨を AI に指定する */
+  docsAiFiles?: DocsAiRef[];
 };
 
 const SITE_TYPE_LABELS: Record<string, string> = {
@@ -66,6 +71,23 @@ export function buildLlmsTxtPrompt(input: PromptInput): string {
     notesForAi.forEach((line) => lines.push(`   - ${line}`));
   } else {
     lines.push("", "5) Notes for AI: 参考例のように「Prioritize ...」「Avoid ...」「Treat ...」の形式で、AI への注記を 2〜4 行書いてください。");
+  }
+
+  const docsAi = input.docsAiFiles?.filter((d) => d.filename?.trim()) ?? [];
+  if (docsAi.length > 0) {
+    lines.push(
+      "",
+      "6) 以下の AI 向けドキュメント（docs/ai）を llms.txt 内で必ず参照してください。",
+      "   セクション「Core AI Documentation」または「AI 向けドキュメント」を設け、各ファイルへのリンク（URL）と説明を記載してください。",
+      "   AI へのプロンプトとして「これらのドキュメントを優先して参照すること」を Notes for AI に含めてください。"
+    );
+    docsAi.forEach((d) => {
+      if (d.fileUrl) {
+        lines.push(`   - ${d.filename}: ${d.fileUrl}`);
+      } else {
+        lines.push(`   - ${d.filename}（URL はアップロード後に設定）`);
+      }
+    });
   }
 
   lines.push(
