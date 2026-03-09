@@ -80,7 +80,7 @@ export const translations = {
     openaiApiKeySetNote: "設定済み。変更する場合のみ上記に入力してください。",
     aiGenerate: "AI で生成",
     aiGenerating: "生成中…",
-    aiErrorNoKey: "OpenAI API Key を設定してください。",
+    aiErrorNoKey: "OpenAI API Key が設定されていません。上の「OpenAI API Key」欄に入力し、設定を保存してから「AI で生成」をご利用ください。",
     aiErrorFailed: "AI 生成に失敗しました。",
   },
   en: {
@@ -158,7 +158,7 @@ export const translations = {
     openaiApiKeySetNote: "Key is set. Enter above only to change it.",
     aiGenerate: "Generate with AI",
     aiGenerating: "Generating…",
-    aiErrorNoKey: "Please set your OpenAI API Key.",
+    aiErrorNoKey: "OpenAI API Key is not set. Enter your API Key in the \"OpenAI API Key\" field above, save settings, then use \"Generate with AI\".",
     aiErrorFailed: "AI generation failed.",
   },
 } as const;
