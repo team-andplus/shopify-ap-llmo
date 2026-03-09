@@ -61,6 +61,11 @@ export const translations = {
     removeRow: "削除",
     footerContact: "お問い合わせ",
     footerPrivacy: "プライバシーポリシー",
+    sidebarRefTitle: "参考",
+    sidebarStatusTitle: "状態",
+    statusLlmsTxtSet: "llms.txt 設置済み",
+    statusLlmsTxtNotSet: "llms.txt 未設置",
+    statusDocsAiCount: "docs/ai: {count} 件",
   },
   en: {
     appTitle: "AP LLMO",
@@ -118,6 +123,11 @@ export const translations = {
     removeRow: "Remove",
     footerContact: "Contact",
     footerPrivacy: "Privacy policy",
+    sidebarRefTitle: "Reference",
+    sidebarStatusTitle: "Status",
+    statusLlmsTxtSet: "llms.txt set",
+    statusLlmsTxtNotSet: "llms.txt not set",
+    statusDocsAiCount: "docs/ai: {count} file(s)",
   },
 } as const;
 

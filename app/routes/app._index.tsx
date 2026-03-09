@@ -261,8 +261,24 @@ export default function AppIndex() {
     }
   };
 
+  const docsAiCount = data.settings.docsAiFiles?.length ?? 0;
+  const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
+
   return (
-    <div style={{ padding: "2rem", maxWidth: "720px" }}>
+    <div
+      className="app-home-grid"
+      style={{
+        padding: "2rem",
+        display: "grid",
+        gridTemplateColumns: "1fr minmax(260px, 320px)",
+        gap: "2rem",
+        alignItems: "start",
+        maxWidth: "1200px",
+      }}
+    >
+      <style>{`@media (max-width: 900px) { .app-home-grid { grid-template-columns: 1fr !important; } }`}</style>
+
+      <main style={{ minWidth: 0 }}>
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{t.appTitle}</h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
         {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}
@@ -476,31 +492,51 @@ export default function AppIndex() {
           {t.llmsTxtUrl}: <a href={data.settings.llmsTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsTxtFileUrl}</a>
         </p>
       )}
+      </main>
 
-      <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.whatThisAppDoes}</h2>
-        <ul style={listStyle}>
-          <li>
-            {t.whatThisAppDoesList1.split(/(<head>)/i).map((part, i) =>
-              part.toLowerCase() === "<head>" ? <code key={i}>&lt;head&gt;</code> : part
-            )}
-          </li>
-        </ul>
-        <ul style={{ ...listStyle, marginTop: "0.5rem" }}>
-          <li><strong>llms.txt</strong> — {t.llmsTxtItem}</li>
-          <li><strong>llms.full.txt</strong> — {t.llmsFullTxtItem}</li>
-          <li><strong>docs/ai/*.md</strong> — {t.docsAiItem}</li>
-        </ul>
-      </section>
+      <aside style={{ position: "sticky", top: "1rem" }}>
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarStatusTitle}</h2>
+          <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>
+            <li>{llmsTxtSet ? t.statusLlmsTxtSet : t.statusLlmsTxtNotSet}</li>
+            <li>{t.statusDocsAiCount.replace("{count}", String(docsAiCount))}</li>
+          </ul>
+        </section>
 
-      <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.setupTitle}</h2>
-        <ol style={listStyle}>
-          <li>{t.setup1}</li>
-          <li>{t.setup2}</li>
-          <li>{t.setup3}</li>
-        </ol>
-      </section>
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarRefTitle}</h2>
+          <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>
+            <li>
+              <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
+            </li>
+          </ul>
+        </section>
+
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.whatThisAppDoes}</h2>
+          <ul style={listStyle}>
+            <li>
+              {t.whatThisAppDoesList1.split(/(<head>)/i).map((part, i) =>
+                part.toLowerCase() === "<head>" ? <code key={i}>&lt;head&gt;</code> : part
+              )}
+            </li>
+          </ul>
+          <ul style={{ ...listStyle, marginTop: "0.5rem" }}>
+            <li><strong>llms.txt</strong> — {t.llmsTxtItem}</li>
+            <li><strong>llms.full.txt</strong> — {t.llmsFullTxtItem}</li>
+            <li><strong>docs/ai/*.md</strong> — {t.docsAiItem}</li>
+          </ul>
+        </section>
+
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.setupTitle}</h2>
+          <ol style={listStyle}>
+            <li>{t.setup1}</li>
+            <li>{t.setup2}</li>
+            <li>{t.setup3}</li>
+          </ol>
+        </section>
+      </aside>
     </div>
   );
 }
