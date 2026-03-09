@@ -509,6 +509,9 @@ export default function AppIndex() {
             <li>
               <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
             </li>
+            <li>
+              <a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer">{t.andplusDocsAiRef}</a>
+            </li>
           </ul>
         </section>
 
