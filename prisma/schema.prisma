@@ -29,3 +29,21 @@ model Session {
 
   @@map("Session")
 }
+
+/// ストアごとの LLMO 設定。アプリホームのフォームで保存。
+model LlmoSettings {
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  siteType        String?  // コーポレート / ECのみ / コーポレート兼EC
+  storeName       String?
+  brandName       String?
+  keywords        String?  // 補足キーワード（自由文）
+  prohibitions    String?  // 禁止事項（JSON 配列 or 改行区切り）
+  llmsTxtBody     String?  // AI が生成した llms.txt 本文（貼り付け用）
+  llmsTxtFileUrl  String?  // Files API で作成したファイルの CDN URL（head 参照用）
+  llmsTxtFileId   String?  // 更新用の file id（fileUpdate 用）
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("LlmoSettings")
+}

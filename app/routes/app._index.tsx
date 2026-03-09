@@ -1,13 +1,137 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { Form, redirect, useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import prisma from "../db.server";
+import { buildLlmsTxtPrompt } from "../lib/llmo-prompt.server";
+import {
+  createOrUpdateLlmsTxtFile,
+  setLlmsTxtUrlMetafield,
+} from "../lib/llmo-files.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop ?? "";
   const storeUrl = shop ? `https://${shop}` : "";
-  return { storeUrl };
+
+  const settings = shop
+    ? await prisma.llmoSettings.findUnique({ where: { shop } })
+    : null;
+
+  return {
+    storeUrl,
+    settings: settings
+      ? {
+          siteType: settings.siteType ?? "",
+          storeName: settings.storeName ?? "",
+          brandName: settings.brandName ?? "",
+          keywords: settings.keywords ?? "",
+          prohibitions: settings.prohibitions ?? "",
+          llmsTxtBody: settings.llmsTxtBody ?? "",
+          llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
+        }
+      : {
+          siteType: "",
+          storeName: "",
+          brandName: "",
+          keywords: "",
+          prohibitions: "",
+          llmsTxtBody: "",
+          llmsTxtFileUrl: "",
+        },
+  };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session?.shop ?? "";
+  if (!shop) {
+    return Response.json({ error: "No shop" }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent") as string | null;
+
+  if (intent === "getPrompt") {
+    const prompt = buildLlmsTxtPrompt({
+      siteType: (formData.get("siteType") as string) ?? "",
+      storeName: (formData.get("storeName") as string) ?? "",
+      brandName: (formData.get("brandName") as string) ?? "",
+      keywords: (formData.get("keywords") as string) ?? "",
+      prohibitions: (formData.get("prohibitions") as string) ?? "",
+    });
+    return Response.json({ prompt });
+  }
+
+  if (intent === "save") {
+    await prisma.llmoSettings.upsert({
+      where: { shop },
+      create: {
+        shop,
+        siteType: (formData.get("siteType") as string) || null,
+        storeName: (formData.get("storeName") as string) || null,
+        brandName: (formData.get("brandName") as string) || null,
+        keywords: (formData.get("keywords") as string) || null,
+        prohibitions: (formData.get("prohibitions") as string) || null,
+        llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+      },
+      update: {
+        siteType: (formData.get("siteType") as string) || null,
+        storeName: (formData.get("storeName") as string) || null,
+        brandName: (formData.get("brandName") as string) || null,
+        keywords: (formData.get("keywords") as string) || null,
+        prohibitions: (formData.get("prohibitions") as string) || null,
+        llmsTxtBody: (formData.get("llmsTxtBody") as string) || null,
+      },
+    });
+    return redirect(".");
+  }
+
+  if (intent === "saveFile") {
+    const llmsTxtBody = (formData.get("llmsTxtBody") as string) ?? "";
+    const existing = await prisma.llmoSettings.findUnique({
+      where: { shop },
+    });
+    const result = await createOrUpdateLlmsTxtFile(
+      admin,
+      llmsTxtBody,
+      existing?.llmsTxtFileId ?? null
+    );
+
+    if (!result.ok) {
+      return Response.json(
+        { ok: false, error: result.error },
+        { status: 400 }
+      );
+    }
+
+    const metafieldOk = await setLlmsTxtUrlMetafield(admin, result.url);
+    if (!metafieldOk) {
+      console.error("[ap-llmo] metafield set failed");
+    }
+
+    await prisma.llmoSettings.upsert({
+      where: { shop },
+      create: {
+        shop,
+        llmsTxtBody,
+        llmsTxtFileUrl: result.url,
+        llmsTxtFileId: result.fileId,
+      },
+      update: {
+        llmsTxtBody,
+        llmsTxtFileUrl: result.url,
+        llmsTxtFileId: result.fileId,
+      },
+    });
+
+    return Response.json({
+      ok: true,
+      url: result.url,
+    });
+  }
+
+  return Response.json({ error: "Unknown intent" }, { status: 400 });
 };
 
 export const headers: HeadersFunction = (headersArgs) => {
@@ -25,9 +149,44 @@ const sectionStyle = {
 
 const listStyle = { margin: 0, paddingLeft: "1.25rem" } as const;
 
+const inputStyle = {
+  display: "block",
+  width: "100%",
+  maxWidth: "400px",
+  marginTop: "0.25rem",
+  padding: "0.5rem 0.75rem",
+  border: "1px solid #c9cccf",
+  borderRadius: "6px",
+  fontSize: "0.9375rem",
+} as const;
+
+const textareaStyle = {
+  ...inputStyle,
+  minHeight: "120px",
+  resize: "vertical" as const,
+};
+
+const labelStyle = { display: "block", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" };
+
 export default function AppIndex() {
-  const data = useLoaderData<{ storeUrl?: string }>();
-  const storeUrl = data?.storeUrl ?? "";
+  const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
+  const fetcher = useFetcher<{ prompt?: string }>();
+  const prompt = fetcher.data?.prompt;
+  const isPromptLoading = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "getPrompt";
+  const fileResult = fetcher.formData?.get("intent") === "saveFile" ? fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined : null;
+
+  const copyPrompt = () => {
+    if (prompt) {
+      navigator.clipboard.writeText(prompt);
+      // 簡易フィードバック（必要なら toast などに差し替え）
+      const btn = document.getElementById("copy-prompt-btn");
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = "コピーしました";
+        setTimeout(() => { btn.textContent = prev; }, 1500);
+      }
+    }
+  };
 
   return (
     <div style={{ padding: "2rem", maxWidth: "720px" }}>
@@ -36,16 +195,146 @@ export default function AppIndex() {
         ストアの <code>&lt;head&gt;</code> に、LLM・エージェント向け文書へのリンクを追加するアプリです。
       </p>
 
+      {/* 設定フォーム */}
+      <section style={sectionStyle}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>llms.txt 設定</h2>
+        <Form method="post" id="llmo-form">
+          <input type="hidden" name="intent" value="save" />
+
+          <label style={labelStyle}>
+            サイトの種類
+            <select name="siteType" style={inputStyle} defaultValue={data.settings.siteType}>
+              <option value="corporate">コーポレート</option>
+              <option value="ec">ECのみ</option>
+              <option value="corporate_ec">コーポレート兼EC</option>
+            </select>
+          </label>
+
+          <label style={labelStyle}>
+            ストア名
+            <input
+              type="text"
+              name="storeName"
+              style={inputStyle}
+              defaultValue={data.settings.storeName}
+              placeholder="例: 〇〇ストア"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            ブランド名
+            <input
+              type="text"
+              name="brandName"
+              style={inputStyle}
+              defaultValue={data.settings.brandName}
+              placeholder="ストア名と同じなら空で可"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            補足キーワード
+            <input
+              type="text"
+              name="keywords"
+              style={inputStyle}
+              defaultValue={data.settings.keywords}
+              placeholder="AI に伝えたいキーワード（任意）"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            禁止事項（1行1項目）
+            <textarea
+              name="prohibitions"
+              style={textareaStyle}
+              defaultValue={data.settings.prohibitions}
+              placeholder="価格・在庫の推測をしない&#10;在庫はサイトで確認すること"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            llms.txt 本文（AI で生成した結果を貼り付け）
+            <textarea
+              name="llmsTxtBody"
+              form="llmo-form"
+              style={{ ...textareaStyle, minHeight: "200px" }}
+              defaultValue={data.settings.llmsTxtBody}
+              placeholder="# サイト名&#10;&gt; 要約&#10;..."
+            />
+          </label>
+
+          <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button type="submit" style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}>
+              設定を保存
+            </button>
+            <button
+              type="button"
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              onClick={() => {
+                const form = document.getElementById("llmo-form") as HTMLFormElement;
+                if (!form) return;
+                const fd = new FormData(form);
+                fd.set("intent", "getPrompt");
+                fetcher.submit(fd, { method: "post" });
+              }}
+              disabled={isPromptLoading}
+            >
+              {isPromptLoading ? "生成中…" : "プロンプトを生成"}
+            </button>
+            <button
+              type="button"
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              onClick={() => {
+                const form = document.getElementById("llmo-form") as HTMLFormElement;
+                if (!form) return;
+                const fd = new FormData(form);
+                fd.set("intent", "saveFile");
+                fetcher.submit(fd, { method: "post" });
+              }}
+            >
+              ファイルを生成・保存（head から参照）
+            </button>
+          </div>
+        </Form>
+      </section>
+
+      {/* プロンプト表示・コピー */}
+      {prompt != null && (
+        <section style={{ ...sectionStyle, marginTop: "1rem" }}>
+          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>生成されたプロンプト（AI にコピーして渡す）</h2>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, padding: "0.75rem", background: "#fff", border: "1px solid #e1e3e5", borderRadius: "6px", fontSize: "0.8125rem", maxHeight: "300px", overflow: "auto" }}>
+            {prompt}
+          </pre>
+          <button
+            id="copy-prompt-btn"
+            type="button"
+            onClick={copyPrompt}
+            style={{ marginTop: "0.5rem", padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+          >
+            コピー
+          </button>
+        </section>
+      )}
+
+      {fileResult?.ok && <p style={{ marginTop: "1rem", color: "#008060", fontSize: "0.9375rem" }}>llms.txt を保存しました。テーマの「LLMO head」ブロックが有効なら head から参照されます。</p>}
+      {fileResult && !fileResult.ok && <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>エラー: {fileResult.error}</p>}
+
+      {data.settings.llmsTxtFileUrl && (
+        <p style={{ marginTop: "1rem", fontSize: "0.875rem", color: "#6d7175" }}>
+          llms.txt の URL: <a href={data.settings.llmsTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsTxtFileUrl}</a>
+        </p>
+      )}
+
       <section style={sectionStyle}>
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>このアプリでできること</h2>
         <ul style={listStyle}>
-          <li>テーマに「LLMO head」ブロックを追加すると、次の4つのリンクがストアの <code>&lt;head&gt;</code> に出力されます。</li>
+          <li>テーマに「LLMO head」ブロックを追加すると、llms.txt などへのリンクがストアの <code>&lt;head&gt;</code> に出力されます。</li>
         </ul>
         <ul style={{ ...listStyle, marginTop: "0.5rem" }}>
-          <li><strong>llms.txt</strong> … LLM に渡す本文（サイトの意図・概要）。<em>ユーザーが作成</em></li>
-          <li><strong>llms.full.txt</strong> … サイト全体の要約・一覧。<em>将来アプリが自動生成予定</em></li>
-          <li><strong>docs/ai/README.md</strong> … 考え方・壁打ちプロンプト。<em>ユーザーが作成</em></li>
-          <li><strong>docs/ai/〇〇.md</strong> … その他の考え方・プロンプト。<em>ユーザーが作成</em></li>
+          <li><strong>llms.txt</strong> … 上記「ファイルを生成・保存」で作成したファイル（メタフィールドの URL を head に出力）</li>
+          <li><strong>llms.full.txt</strong> … 将来アプリが自動生成予定</li>
+          <li><strong>docs/ai/README.md</strong> … ユーザーが用意</li>
         </ul>
       </section>
 
@@ -53,30 +342,9 @@ export default function AppIndex() {
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>セットアップ（確認済みならスキップ可）</h2>
         <ol style={listStyle}>
           <li><strong>オンラインストア</strong> → <strong>テーマ</strong> → <strong>カスタマイズ</strong> を開く</li>
-          <li>左の <strong>アプリ</strong>（またはアプリの埋め込み）から <strong>AP LLMO</strong> → <strong>LLMO head</strong> を追加</li>
+          <li>左の <strong>アプリ</strong> から <strong>AP LLMO</strong> → <strong>LLMO head</strong> を追加</li>
           <li>「LLMO リンクを head に追加する」をオンにして <strong>保存</strong></li>
         </ol>
-      </section>
-
-      <section style={sectionStyle}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>リンク先のファイルの用意</h2>
-        <p style={{ margin: "0 0 0.5rem 0" }}>
-          llms.txt や docs/ai/README.md は<strong>ストア側で用意</strong>します。例:
-        </p>
-        <ul style={listStyle}>
-          <li><strong>ファイル</strong>: 管理画面の <strong>コンテンツ</strong> → <strong>ファイル</strong> に llms.txt をアップロードし、URL を <code>{storeUrl ? `${storeUrl}/llms.txt` : "https://あなたのストア.myshopify.com/llms.txt"}</code> のようにアクセスできるようにする（パスはテーマやルーティングで調整が必要な場合あり）</li>
-          <li><strong>ページ</strong>: <strong>オンラインストア</strong> → <strong>ページ</strong> で「llms」などのハンドルでページを作成し、本文をテキストで書く方法もあります</li>
-        </ul>
-        <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#6d7175" }}>
-          考え方と壁打ちプロンプトは <code>docs/ai/README.md</code> にまとめることを推奨します。
-        </p>
-      </section>
-
-      <section style={{ ...sectionStyle, background: "transparent", paddingLeft: 0 }}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>動作確認</h2>
-        <p style={{ margin: 0, fontSize: "0.9375rem" }}>
-          ストアフロントを開き、<strong>ページのソースを表示</strong>して <code>&lt;head&gt;</code> 内に <code>llms.txt</code> / <code>llms.full.txt</code> / <code>docs/ai/README.md</code> への <code>&lt;link&gt;</code> が出ていれば設定は完了です。リンク先が 404 でも、まずはリンクの出力確認までで問題ありません。
-        </p>
       </section>
     </div>
   );

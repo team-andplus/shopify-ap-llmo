@@ -1,11 +1,15 @@
 {% comment %}
   AP LLMO: ストアの head に LLM・エージェント向け文書への link を追加する。
-  - llms.txt: ユーザー定義の本文
+  - llms.txt: アプリで作成したファイルの URL（メタフィールド）またはフォールバックで shop.url/llms.txt
   - llms.full.txt: アプリが自動生成する要約（将来対応）
   - docs/ai/README.md: 考え方・壁打ちプロンプト（ユーザー定義）
 {% endcomment %}
 {%- if block.settings.enabled -%}
-  <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.txt" title="LLM-oriented document (llms.txt)" />
+  {%- if shop.metafields.llmo.llms_txt_url != blank -%}
+    <link rel="alternate" type="text/plain" href="{{ shop.metafields.llmo.llms_txt_url }}" title="LLM-oriented document (llms.txt)" />
+  {%- else -%}
+    <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.txt" title="LLM-oriented document (llms.txt)" />
+  {%- endif -%}
   <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.full.txt" title="LLM-oriented full summary (llms.full.txt)" />
   <link rel="alternate" type="text/markdown" href="{{ shop.url }}/docs/ai/README.md" title="LLMO docs: README" />
 {%- endif -%}

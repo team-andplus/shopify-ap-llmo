@@ -25,7 +25,8 @@ api_version = "2026-01"
   uri = "/webhooks/app/uninstalled"
 
 [access_scopes]
-scopes = "read_products"
+# llms.txt を Files API で作成し shop メタフィールドに URL を保存するために必要
+scopes = "read_products,write_files,write_metafields"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
