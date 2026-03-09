@@ -150,9 +150,14 @@ cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
 git pull
 git submodule update --init --recursive
 npm ci --omit=dev   # 依存に変更があれば
+# 重要: prisma のスキーマ／マイグレーション変更があった場合は必ず実行（LlmoSettings 等の新テーブルを作成）
+set -a && source ../common/shopify-ap-llmo.env && set +a
+npm run setup:prod
 npm run build
 pm2 restart shopify-ap-llmo
 ```
+
+**Application Error が出る場合**: 新規テーブル（例: LlmoSettings）追加後に `setup:prod` を実行していないと MySQL にテーブルがなくエラーになる。上記の `npm run setup:prod` を実行してから再起動すること。
 
 ---
 
