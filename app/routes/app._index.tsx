@@ -35,46 +35,62 @@ function parseDocsAiFromSettings(json: string | null): DocsAiFileEntry[] {
   }
 }
 
+const emptySettings = {
+  siteType: "",
+  title: "",
+  roleSummary: "",
+  sectionsOutline: "",
+  notesForAi: "",
+  llmsTxtBody: "",
+  llmsTxtFileUrl: "",
+  docsAiFiles: [] as DocsAiFileEntry[],
+  openaiApiKeySet: false,
+};
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session?.shop ?? "";
-  const storeUrl = shop ? `https://${shop}` : "";
-  const locale = getLocaleFromRequest(request);
+  try {
+    const { session } = await authenticate.admin(request);
+    const shop = session?.shop ?? "";
+    const storeUrl = shop ? `https://${shop}` : "";
+    const locale = getLocaleFromRequest(request);
 
-  const settings = shop
-    ? await prisma.llmoSettings.findUnique({ where: { shop } })
-    : null;
+    const settings = shop
+      ? await prisma.llmoSettings.findUnique({ where: { shop } })
+      : null;
 
-  const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
+    const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
 
-  return {
-    storeUrl,
-    locale,
-    t: getTranslations(locale),
-    settings: settings
-      ? {
-          siteType: settings.siteType ?? "",
-          title: settings.title ?? "",
-          roleSummary: settings.roleSummary ?? "",
-          sectionsOutline: settings.sectionsOutline ?? "",
-          notesForAi: settings.notesForAi ?? "",
-          llmsTxtBody: settings.llmsTxtBody ?? "",
-          llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
-          docsAiFiles,
-          openaiApiKeySet: !!(settings as { openaiApiKey?: string | null }).openaiApiKey,
-        }
-      : {
-          siteType: "",
-          title: "",
-          roleSummary: "",
-          sectionsOutline: "",
-          notesForAi: "",
-          llmsTxtBody: "",
-          llmsTxtFileUrl: "",
-          docsAiFiles: [] as DocsAiFileEntry[],
-          openaiApiKeySet: false,
-        },
-  };
+    return {
+      storeUrl,
+      locale,
+      t: getTranslations(locale),
+      settings: settings
+        ? {
+            siteType: settings.siteType ?? "",
+            title: settings.title ?? "",
+            roleSummary: settings.roleSummary ?? "",
+            sectionsOutline: settings.sectionsOutline ?? "",
+            notesForAi: settings.notesForAi ?? "",
+            llmsTxtBody: settings.llmsTxtBody ?? "",
+            llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
+            docsAiFiles,
+            openaiApiKeySet: !!(settings as { openaiApiKey?: string | null }).openaiApiKey,
+          }
+        : emptySettings,
+      loaderError: null as string | null,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[ap-llmo] app._index loader error:", err);
+    const locale = getLocaleFromRequest(request);
+    return {
+      storeUrl: "",
+      locale,
+      t: getTranslations(locale),
+      settings: emptySettings,
+      loaderError: message,
+    };
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -368,6 +384,7 @@ export default function AppIndex() {
 
   const docsAiCount = data.settings.docsAiFiles?.length ?? 0;
   const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
+  const loaderError = (data as { loaderError?: string | null }).loaderError;
 
   return (
     <div
@@ -387,6 +404,11 @@ export default function AppIndex() {
       `}</style>
 
       <main style={{ minWidth: 0 }}>
+      {loaderError && (
+        <p style={{ padding: "1rem", marginBottom: "1rem", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px", fontSize: "0.9375rem" }}>
+          {t.error}: {loaderError}
+        </p>
+      )}
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{t.appTitle}</h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
         {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}

@@ -34,10 +34,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return { apiKey, shop: sessionShop, storeUrl, locale };
   } catch (err) {
     console.error("[ap-llmo] app layout loader error:", err);
-    // 認証失敗時は 403 ではなく /auth へリダイレクト（再ログインで解消するため）
-    const base = getAppRedirectBase(request);
-    const search = url.search;
-    throw redirect(`${base}/auth${search ? (search.startsWith("?") ? search : `?${search}`) : shop ? `?shop=${shop}` : ""}`);
+    try {
+      const base = getAppRedirectBase(request);
+      const search = url.search;
+      throw redirect(`${base}/auth${search ? (search.startsWith("?") ? search : `?${search}`) : shop ? `?shop=${shop}` : ""}`);
+    } catch (redirectErr) {
+      console.error("[ap-llmo] app layout redirect failed:", redirectErr);
+      throw redirectErr;
+    }
   }
 };
 
