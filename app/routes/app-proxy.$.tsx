@@ -1,0 +1,64 @@
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+
+/**
+ * App Proxy: ストアの /apps/llmo/llms.txt 等にアクセスすると、
+ * DB から該当ファイルの CDN URL を取得して 302 リダイレクトする。
+ * メタフィールドは使わず、アプリの DB のみで完結する。
+ */
+export async function loader({ request }: LoaderFunctionArgs) {
+  await authenticate.public.appProxy(request);
+
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  if (!shop) {
+    return new Response("Missing shop", { status: 400 });
+  }
+
+  // パスは app-proxy/ の後ろ（例: llms.txt, llms.full.txt, docs/ai/README.md）
+  const pathname = url.pathname;
+  const idx = pathname.indexOf("app-proxy/");
+  const path =
+    idx >= 0
+      ? pathname.slice(idx + "app-proxy/".length).replace(/\/$/, "")
+      : pathname.replace(/^\/+/, "");
+
+  const settings = await prisma.llmoSettings.findUnique({
+    where: { shop },
+    select: {
+      llmsTxtFileUrl: true,
+      docsAiFiles: true,
+    },
+  });
+
+  if (path === "llms.txt" && settings?.llmsTxtFileUrl) {
+    return redirect(settings.llmsTxtFileUrl, 302);
+  }
+
+  if (path === "llms.full.txt") {
+    // 将来 llms.full.txt 用の URL を DB に持てばここでリダイレクト
+    return new Response("Not found", { status: 404 });
+  }
+
+  if (path === "docs/ai/README.md" && settings?.docsAiFiles) {
+    try {
+      const arr = JSON.parse(settings.docsAiFiles) as Array<{
+        filename?: string;
+        fileUrl?: string | null;
+      }>;
+      const readme = Array.isArray(arr)
+        ? arr.find((e) => e.filename === "README.md")
+        : undefined;
+      if (readme?.fileUrl) {
+        return redirect(readme.fileUrl, 302);
+      }
+    } catch {
+      // ignore
+    }
+    return new Response("Not found", { status: 404 });
+  }
+
+  return new Response("Not found", { status: 404 });
+}

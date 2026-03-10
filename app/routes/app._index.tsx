@@ -9,7 +9,6 @@ import { buildLlmsTxtPrompt } from "../lib/llmo-prompt.server";
 import {
   createOrUpdateLlmsTxtFile,
   createOrUpdateDocsAiFiles,
-  setLlmsTxtUrlMetafield,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
 import { getDecryptedOpenAiKey, generateLlmsTxtBody } from "../lib/openai.server";
@@ -284,11 +283,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { ok: false, error: result.error },
           { status: 400 }
         );
-      }
-
-      const metafieldOk = await setLlmsTxtUrlMetafield(admin, result.url);
-      if (!metafieldOk) {
-        console.error("[ap-llmo] metafield set failed");
       }
 
       try {

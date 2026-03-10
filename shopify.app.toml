@@ -25,11 +25,16 @@ api_version = "2026-01"
   uri = "/webhooks/app/uninstalled"
 
 [access_scopes]
-# llms.txt を Files API で作成し shop メタフィールドに URL を保存するために必要
 # stagedUploadsCreate は read_files + write_files の両方が必要
-scopes = "read_products,read_files,write_files,write_metafields"
+# app_proxy で llms.txt 等をストア URL からリダイレクトするために必要
+scopes = "read_products,read_files,write_files,write_metafields,write_app_proxy"
 optional_scopes = [ ]
 use_legacy_install_flow = false
+
+[app_proxy]
+url = "https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/app-proxy"
+prefix = "apps"
+subpath = "llmo"
 
 [auth]
 redirect_urls = [
