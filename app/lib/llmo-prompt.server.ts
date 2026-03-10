@@ -13,6 +13,12 @@ export type PromptInput = {
   roleSummary: string;
   sectionsOutline: string;
   notesForAi: string;
+  /** 業種（例: アパレル、食品）。プロンプトに含めると生成が具体化する */
+  industry?: string;
+  /** ターゲット（例: 20–40代女性、法人担当者） */
+  target?: string;
+  /** 商材・取り扱い内容（例: オーガニックコスメ、業務用食材） */
+  productType?: string;
   /** docs/ai 用 md 一覧。llms.txt から参照する旨を AI に指定する */
   docsAiFiles?: DocsAiRef[];
 };
@@ -53,6 +59,17 @@ export function buildLlmsTxtPrompt(input: PromptInput): string {
     `1) このサイトの種類: ${siteTypeLabel}`,
     `2) タイトル（H1）のたたき台: ${title}`,
   ];
+
+  const industry = input.industry?.trim();
+  const target = input.target?.trim();
+  const productType = input.productType?.trim();
+  if (industry || target || productType) {
+    lines.push("");
+    if (industry) lines.push(`  業種: ${industry}`);
+    if (target) lines.push(`  ターゲット: ${target}`);
+    if (productType) lines.push(`  商材・取り扱い: ${productType}`);
+    lines.push("");
+  }
 
   if (roleSummary) {
     lines.push("", "3) このファイルの役割・一次情報の所在（blockquote 用）のメモ:", roleSummary);

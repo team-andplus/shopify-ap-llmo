@@ -11,7 +11,7 @@ import {
   createOrUpdateDocsAiFiles,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
-import { getDecryptedOpenAiKey, generateLlmsTxtBody } from "../lib/openai.server";
+import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement } from "../lib/openai.server";
 import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 
@@ -131,6 +131,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent") as string | null;
 
+  const getPromptInput = () => ({
+    siteType: (formData.get("siteType") as string) ?? "",
+    title: (formData.get("title") as string) ?? "",
+    roleSummary: (formData.get("roleSummary") as string) ?? "",
+    sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
+    notesForAi: (formData.get("notesForAi") as string) ?? "",
+    industry: (formData.get("industry") as string)?.trim() || undefined,
+    target: (formData.get("target") as string)?.trim() || undefined,
+    productType: (formData.get("productType") as string)?.trim() || undefined,
+    docsAiFiles: undefined as { filename: string; fileUrl?: string | null }[] | undefined,
+  });
+
   if (intent === "getPrompt") {
     const count = Math.min(parseInt(String(formData.get("docsAiCount") || "0"), 10) || 0, MAX_DOCS_AI_ROWS);
     const docsAiFiles: { filename: string; fileUrl?: string | null }[] = [];
@@ -140,14 +152,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
       docsAiFiles.push({ filename, fileUrl });
     }
-    const prompt = buildLlmsTxtPrompt({
-      siteType: (formData.get("siteType") as string) ?? "",
-      title: (formData.get("title") as string) ?? "",
-      roleSummary: (formData.get("roleSummary") as string) ?? "",
-      sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
-      notesForAi: (formData.get("notesForAi") as string) ?? "",
-      docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
-    });
+    const input = getPromptInput();
+    input.docsAiFiles = docsAiFiles.length ? docsAiFiles : undefined;
+    const prompt = buildLlmsTxtPrompt(input);
     return Response.json({ prompt });
   }
 
@@ -161,14 +168,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const fileUrl = (formData.get(`docsAiFileUrl_${i}`) as string)?.trim() || null;
         docsAiFiles.push({ filename, fileUrl });
       }
-      const prompt = buildLlmsTxtPrompt({
-        siteType: (formData.get("siteType") as string) ?? "",
-        title: (formData.get("title") as string) ?? "",
-        roleSummary: (formData.get("roleSummary") as string) ?? "",
-        sectionsOutline: (formData.get("sectionsOutline") as string) ?? "",
-        notesForAi: (formData.get("notesForAi") as string) ?? "",
-        docsAiFiles: docsAiFiles.length ? docsAiFiles : undefined,
-      });
+      const input = getPromptInput();
+      input.docsAiFiles = docsAiFiles.length ? docsAiFiles : undefined;
+      const prompt = buildLlmsTxtPrompt(input);
       const apiKey = await getDecryptedOpenAiKey(shop);
       if (!apiKey) {
         return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
@@ -180,6 +182,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return Response.json({ body: result.body });
     } catch (err) {
       console.error("[ap-llmo] generateLlmsTxt error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      return Response.json(
+        { error: "GENERATE_FAILED", message: message.slice(0, 200) },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (intent === "refineLlmsTxt") {
+    try {
+      const currentBody = (formData.get("llmsTxtBody") as string)?.trim() ?? "";
+      const refinementNote = (formData.get("refinementNote") as string)?.trim() ?? "";
+      if (!currentBody) {
+        return Response.json({ error: "REFINE_BODY_EMPTY" }, { status: 400 });
+      }
+      if (!refinementNote) {
+        return Response.json({ error: "REFINE_NOTE_EMPTY" }, { status: 400 });
+      }
+      const apiKey = await getDecryptedOpenAiKey(shop);
+      if (!apiKey) {
+        return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+      }
+      const result = await generateLlmsTxtBodyRefinement(currentBody, refinementNote, apiKey);
+      if (!result.ok) {
+        return Response.json({ error: result.error ?? "OPENAI_ERROR" }, { status: 502 });
+      }
+      return Response.json({ body: result.body });
+    } catch (err) {
+      console.error("[ap-llmo] refineLlmsTxt error:", err);
       const message = err instanceof Error ? err.message : String(err);
       return Response.json(
         { error: "GENERATE_FAILED", message: message.slice(0, 200) },
@@ -403,6 +434,7 @@ export default function AppIndex() {
   const lastIntent = (fetcher.formData as FormData | undefined)?.get("intent");
   const isPromptLoading = fetcher.state !== "idle" && lastIntent === "getPrompt";
   const isAiGenerating = fetcher.state !== "idle" && lastIntent === "generateLlmsTxt";
+  const isRefining = fetcher.state !== "idle" && lastIntent === "refineLlmsTxt";
   const fileResult =
     lastIntent === "saveFile"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
@@ -411,6 +443,7 @@ export default function AppIndex() {
   const anyFetcherError =
     fetcher.state === "idle" &&
     lastIntent !== "generateLlmsTxt" &&
+    lastIntent !== "refineLlmsTxt" &&
     fetcher.data &&
     typeof (fetcher.data as { error?: string }).error === "string" &&
     !(fetcher.data as { body?: string }).body &&
@@ -418,10 +451,12 @@ export default function AppIndex() {
       ? (fetcher.data as { error: string }).error
       : null;
   const llmsTxtBodyRef = useRef<HTMLTextAreaElement>(null);
+  const refinementNoteRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.body && llmsTxtBodyRef.current) {
       llmsTxtBodyRef.current.value = fetcher.data.body;
+      if (refinementNoteRef.current) refinementNoteRef.current.value = "";
     }
   }, [fetcher.state, fetcher.data?.body]);
 
@@ -596,6 +631,34 @@ export default function AppIndex() {
           </label>
 
           <label style={labelStyle}>
+            {t.industryLabel}
+            <input
+              type="text"
+              name="industry"
+              style={inputStyle}
+              placeholder={t.industryPlaceholder}
+            />
+          </label>
+          <label style={labelStyle}>
+            {t.targetLabel}
+            <input
+              type="text"
+              name="target"
+              style={inputStyle}
+              placeholder={t.targetPlaceholder}
+            />
+          </label>
+          <label style={labelStyle}>
+            {t.productTypeLabel}
+            <input
+              type="text"
+              name="productType"
+              style={inputStyle}
+              placeholder={t.productTypePlaceholder}
+            />
+          </label>
+
+          <label style={labelStyle}>
             {t.openaiApiKeyLabel}
             <input
               type="password"
@@ -690,6 +753,70 @@ export default function AppIndex() {
                   : t.error}
             </p>
           )}
+
+          {fetcher.data?.error && lastIntent === "refineLlmsTxt" && (
+            <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
+              {fetcher.data.error === "REFINE_BODY_EMPTY"
+                ? t.refineErrorBodyEmpty
+                : fetcher.data.error === "REFINE_NOTE_EMPTY"
+                  ? t.refineErrorNoteEmpty
+                  : fetcher.data.error === "API_KEY_REQUIRED"
+                    ? t.aiErrorNoKey
+                    : fetcher.data.error === "GENERATE_FAILED"
+                      ? (fetcher.data as { message?: string }).message
+                        ? `${t.aiErrorFailed} ${(fetcher.data as { message: string }).message}`
+                        : t.aiErrorFailed
+                      : String((fetcher.data as { error?: string }).error ?? t.error)}
+            </p>
+          )}
+
+          <section style={{ marginTop: "1.25rem", padding: "1rem", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e1e3e5" }}>
+            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.refinementSectionTitle}</h3>
+            <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.5rem" }}>
+              {data.locale === "ja"
+                ? "上の llms.txt 本文をベースに、修正希望を書いて「この内容で再生成」を押すと、AI が修正版を生成します。"
+                : "Enter what you want to change about the llms.txt body above, then click the button to regenerate."}
+            </p>
+            <label style={{ ...labelStyle, marginTop: "0.5rem" }}>
+              {t.refinementNoteLabel}
+              <input
+                ref={refinementNoteRef}
+                type="text"
+                style={{ ...inputStyle, maxWidth: "calc(100% - 1.5rem)" }}
+                placeholder={t.refinementNotePlaceholder}
+                disabled={isRefining}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={isRefining}
+              onClick={() => {
+                const form = document.getElementById("llmo-form") as HTMLFormElement;
+                if (!form) return;
+                const fd = new FormData(form);
+                fd.set("intent", "refineLlmsTxt");
+                fd.set("refinementNote", refinementNoteRef.current?.value ?? "");
+                fetcher.submit(fd, { method: "post" });
+              }}
+              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: isRefining ? "wait" : "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              {isRefining && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "1em",
+                    height: "1em",
+                    border: "2px solid rgba(0,0,0,0.2)",
+                    borderTopColor: "#202223",
+                    borderRadius: "50%",
+                    animation: "ap-llmo-spin 0.7s linear infinite",
+                  }}
+                  aria-hidden
+                />
+              )}
+              {isRefining ? t.refining : t.refineButton}
+            </button>
+          </section>
 
           <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button
