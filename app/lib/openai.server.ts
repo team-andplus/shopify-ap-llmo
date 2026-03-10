@@ -15,15 +15,16 @@ export type GenerateResult =
 
 /**
  * ストアの OpenAI API Key を復号して返す。未設定なら null。
+ * openaiApiKey 列がまだない DB の場合は null を返す（API Key は任意）。
  */
 export async function getDecryptedOpenAiKey(shop: string): Promise<string | null> {
-  const settings = await prisma.llmoSettings.findUnique({
-    where: { shop },
-    select: { openaiApiKey: true },
-  });
-  const raw = settings?.openaiApiKey;
-  if (!raw?.trim()) return null;
   try {
+    const settings = await prisma.llmoSettings.findUnique({
+      where: { shop },
+      select: { openaiApiKey: true },
+    });
+    const raw = settings?.openaiApiKey;
+    if (!raw?.trim()) return null;
     return decrypt(raw);
   } catch {
     return null;

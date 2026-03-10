@@ -54,8 +54,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const storeUrl = shop ? `https://${shop}` : "";
     const locale = getLocaleFromRequest(request);
 
+    // openaiApiKey 列がまだない DB でも動くよう、select で列を限定（openaiApiKey は参照しない）
     const settings = shop
-      ? await prisma.llmoSettings.findUnique({ where: { shop } })
+      ? await prisma.llmoSettings.findUnique({
+          where: { shop },
+          select: {
+            siteType: true,
+            title: true,
+            roleSummary: true,
+            sectionsOutline: true,
+            notesForAi: true,
+            llmsTxtBody: true,
+            llmsTxtFileUrl: true,
+            docsAiFiles: true,
+          },
+        })
       : null;
 
     const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
@@ -74,7 +87,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtBody: settings.llmsTxtBody ?? "",
             llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
             docsAiFiles,
-            openaiApiKeySet: !!(settings as { openaiApiKey?: string | null }).openaiApiKey,
+            openaiApiKeySet: false, // openaiApiKey は select していない（列がない DB 対応）
           }
         : emptySettings,
       loaderError: null as string | null,
@@ -204,17 +217,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       docsAiFiles: JSON.stringify(uploadedDocs),
     };
 
-    await prisma.llmoSettings.upsert({
-      where: { shop },
-      create: {
-        ...baseCreate,
-        ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
-      },
-      update: {
-        ...baseUpdate,
-        ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
-      },
-    });
+    try {
+      await prisma.llmoSettings.upsert({
+        where: { shop },
+        create: {
+          ...baseCreate,
+          ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
+        },
+        update: {
+          ...baseUpdate,
+          ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("does not exist") || msg.includes("Unknown column") || msg.includes("openaiApiKey")) {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: baseCreate,
+          update: baseUpdate,
+        });
+      } else {
+        throw err;
+      }
+    }
     return redirect(request.url);
   }
 
@@ -223,6 +249,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const llmsTxtBody = (formData.get("llmsTxtBody") as string) ?? "";
       const existing = await prisma.llmoSettings.findUnique({
         where: { shop },
+        select: { llmsTxtFileId: true },
       });
       const result = await createOrUpdateLlmsTxtFile(
         admin,
