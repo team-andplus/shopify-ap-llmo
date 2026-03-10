@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useLoaderData, useFetcher } from "react-router";
+import { Form, redirect, useLoaderData, useFetcher, useNavigation } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "node:crypto";
 import { authenticate } from "../shopify.server";
@@ -364,6 +364,7 @@ const inputStyle = {
 
 const textareaStyle = {
   ...inputStyle,
+  maxWidth: "calc(100% - 1.5rem)",
   minHeight: "120px",
   resize: "vertical" as const,
 };
@@ -380,7 +381,9 @@ const emptyDocRow = (): DocsAiFileEntry => ({
 export default function AppIndex() {
   const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
   const t = data.t;
+  const navigation = useNavigation();
   const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; message?: string; ok?: boolean; url?: string }>();
+  const isSaving = navigation.state === "submitting" && navigation.formData?.get("intent") === "save";
   const prompt = fetcher.data?.prompt;
   const lastIntent = (fetcher.formData as FormData | undefined)?.get("intent");
   const isPromptLoading = fetcher.state !== "idle" && lastIntent === "getPrompt";
@@ -674,8 +677,26 @@ export default function AppIndex() {
           )}
 
           <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <button type="submit" style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}>
-              {t.saveSettings}
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: isSaving ? "wait" : "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              {isSaving && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "1em",
+                    height: "1em",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "ap-llmo-spin 0.7s linear infinite",
+                  }}
+                  aria-hidden
+                />
+              )}
+              {isSaving ? t.saveSettingsLoading : t.saveSettings}
             </button>
             <button
               type="button"
