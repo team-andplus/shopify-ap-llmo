@@ -291,20 +291,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.error("[ap-llmo] metafield set failed");
       }
 
-      await prisma.llmoSettings.upsert({
-        where: { shop },
-        create: {
+      try {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: {
+            shop,
+            llmsTxtBody,
+            llmsTxtFileUrl: result.url,
+            llmsTxtFileId: result.fileId,
+          },
+          update: {
+            llmsTxtBody,
+            llmsTxtFileUrl: result.url,
+            llmsTxtFileId: result.fileId,
+          },
+        });
+      } catch {
+        // openaiApiKey 列がまだない DB 用: raw upsert（MySQL）
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO LlmoSettings (id, shop, llmsTxtBody, llmsTxtFileUrl, llmsTxtFileId, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             llmsTxtBody = VALUES(llmsTxtBody),
+             llmsTxtFileUrl = VALUES(llmsTxtFileUrl),
+             llmsTxtFileId = VALUES(llmsTxtFileId),
+             updatedAt = NOW()`,
+          id,
           shop,
           llmsTxtBody,
-          llmsTxtFileUrl: result.url,
-          llmsTxtFileId: result.fileId,
-        },
-        update: {
-          llmsTxtBody,
-          llmsTxtFileUrl: result.url,
-          llmsTxtFileId: result.fileId,
-        },
-      });
+          result.url,
+          result.fileId
+        );
+      }
 
       return Response.json({
         ok: true,
