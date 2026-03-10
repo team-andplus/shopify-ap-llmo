@@ -18,6 +18,17 @@ export const translations = {
     llmsTxtSettings: "llms.txt 設定",
     llmsTxtSettingsNote:
       "思想（誰のため・一次情報の所在）とプロトコル（H1 / blockquote / 番号付きセクション / Notes for AI）に則ります。参考:",
+    fieldPurposeTitle: "各項目を定義する理由",
+    fieldPurposeIntro:
+      "以下の項目は、llms.txt および docs/ai を「誰のためのファイルか・一次情報はどこにあるか・AI にどう解釈してほしいか」が一貫して伝わるよう設計するために使います。AI 生成時や手書き時のたたき台となり、嘘や誇張を避けた正確な解釈を促します。",
+    siteTypeWhy: "サイトの種類（コーポレート / EC / 両方）を選ぶことで、生成される llms.txt のトーンやセクション案をサイト性質に合わせます。",
+    titleWhy: "llms.txt の先頭 H1 に使うタイトルです。サイト名と「LLM 向け公式情報」である旨が分かるようにします。",
+    roleSummaryWhy:
+      "このファイルの役割と一次情報の所在を 1〜3 文で書きます。llms.txt 冒頭の blockquote になり、AI に「ここが正規の一次情報である」と伝えます。",
+    sectionsOutlineWhy:
+      "## 1. ## 2. のようなセクション構成のたたき台です。生成時や手書き時の目次になり、一次情報・外部証拠・解釈ガイドなどの並びを決めます。",
+    notesForAiWhy:
+      "AI への注記（優先すること・避けること・扱い方）を 1 行 1 項目で書きます。llms.txt 末尾の「Notes for AI:」に反映され、解釈の優先順位や禁止事項を明示します。",
     siteType: "サイトの種類",
     siteTypeCorporate: "コーポレート",
     siteTypeEc: "ECのみ",
@@ -96,6 +107,17 @@ export const translations = {
     llmsTxtSettings: "llms.txt settings",
     llmsTxtSettingsNote:
       "Follow philosophy (who it's for, where first-party info lives) and protocol (H1, blockquote, numbered sections, Notes for AI). Reference:",
+    fieldPurposeTitle: "Why we define these fields",
+    fieldPurposeIntro:
+      "These fields help you design llms.txt and docs/ai so that \"who it's for,\" \"where first-party information lives,\" and \"how AI should interpret\" are stated consistently. They act as a scaffold for AI generation or hand-written content and encourage accurate interpretation without lies or exaggeration.",
+    siteTypeWhy: "Choosing site type (corporate / EC / both) aligns the generated llms.txt tone and section ideas with your store's purpose.",
+    titleWhy: "Used as the H1 at the top of llms.txt. Makes the site name and \"official info for LLMs\" clear.",
+    roleSummaryWhy:
+      "Describe the role of this file and where first-party information lives in 1–3 sentences. Becomes the blockquote at the start of llms.txt and tells AI that this is the authoritative primary source.",
+    sectionsOutlineWhy:
+      "A draft outline of sections (## 1. ## 2. …). Becomes the table of contents when generating or writing; you decide the order of primary sources, external evidence, and interpretation guidelines.",
+    notesForAiWhy:
+      "Notes for AI (what to prioritize, avoid, or how to treat content) one per line. Appears in the \"Notes for AI:\" section at the end of llms.txt and makes interpretation priorities and prohibitions explicit.",
     siteType: "Site type",
     siteTypeCorporate: "Corporate",
     siteTypeEc: "EC only",

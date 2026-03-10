@@ -505,6 +505,24 @@ export default function AppIndex() {
           {t.llmsTxtSettingsNote}{" "}
           <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
         </p>
+
+        {/* 各項目を定義する理由（なぜ・なんのために） */}
+        <details style={{ marginBottom: "1rem", padding: "0.75rem 1rem", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e1e3e5" }}>
+          <summary style={{ fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer" }}>
+            {t.fieldPurposeTitle}
+          </summary>
+          <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", lineHeight: 1.65, color: "#202223" }}>
+            {t.fieldPurposeIntro}
+          </p>
+          <ul style={{ margin: "0.75rem 0 0 0", paddingLeft: "1.25rem", fontSize: "0.8125rem", lineHeight: 1.7, color: "#4d5156" }}>
+            <li><strong>{t.siteType}</strong> — {t.siteTypeWhy}</li>
+            <li><strong>{t.titleLabel}</strong> — {t.titleWhy}</li>
+            <li><strong>{t.roleSummaryLabel}</strong> — {t.roleSummaryWhy}</li>
+            <li><strong>{t.sectionsOutlineLabel}</strong> — {t.sectionsOutlineWhy}</li>
+            <li><strong>{t.notesForAiLabel}</strong> — {t.notesForAiWhy}</li>
+          </ul>
+        </details>
+
         <Form method="post" id="llmo-form">
           <input type="hidden" name="intent" value="save" />
           <input type="hidden" name="docsAiCount" value={docsRows.length} />
