@@ -42,25 +42,25 @@ export async function createOrUpdateLlmsTxtFile(
     if (existingFileId) {
       // 既存ファイルを更新: stagedUpload → fileUpdate
       const staged = await getStagedUploadTarget(admin, fileSize);
-      if (!staged) return { ok: false, error: "ステージドアップロードの取得に失敗しました。" };
+      if (!staged.ok) return { ok: false, error: staged.error };
 
-      const uploaded = await uploadToStagedUrl(staged.url, staged.parameters, buffer);
+      const uploaded = await uploadToStagedUrl(staged.value.url, staged.value.parameters, buffer);
       if (!uploaded) return { ok: false, error: "ファイルのアップロードに失敗しました。" };
 
-      const updated = await fileUpdate(admin, existingFileId, staged.resourceUrl);
-      if (!updated) return { ok: false, error: "ファイルの更新に失敗しました。" };
+      const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
+      if (!updated.ok) return { ok: false, error: updated.error };
       return { ok: true, url: updated.url, fileId: updated.id };
     }
 
     // 新規作成: stagedUpload → fileCreate
     const staged = await getStagedUploadTarget(admin, fileSize);
-    if (!staged) return { ok: false, error: "ステージドアップロードの取得に失敗しました。" };
+    if (!staged.ok) return { ok: false, error: staged.error };
 
-    const uploaded = await uploadToStagedUrl(staged.url, staged.parameters, buffer);
+    const uploaded = await uploadToStagedUrl(staged.value.url, staged.value.parameters, buffer);
     if (!uploaded) return { ok: false, error: "ファイルのアップロードに失敗しました。" };
 
-    const created = await fileCreate(admin, staged.resourceUrl);
-    if (!created) return { ok: false, error: "ファイルの作成に失敗しました。" };
+    const created = await fileCreate(admin, staged.value.resourceUrl);
+    if (!created.ok) return { ok: false, error: created.error };
     return { ok: true, url: created.url, fileId: created.id };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -92,23 +92,23 @@ export async function createOrUpdateMdFile(
       "text/markdown",
       fileSize
     );
-    if (!staged) return { ok: false, error: "Failed to get staged upload target." };
+    if (!staged.ok) return { ok: false, error: staged.error };
 
     const uploaded = await uploadToStagedUrl(
-      staged.url,
-      staged.parameters,
+      staged.value.url,
+      staged.value.parameters,
       buffer,
       "text/markdown; charset=utf-8"
     );
     if (!uploaded) return { ok: false, error: "Failed to upload file." };
 
     if (existingFileId) {
-      const updated = await fileUpdate(admin, existingFileId, staged.resourceUrl);
-      if (!updated) return { ok: false, error: "Failed to update file." };
+      const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
+      if (!updated.ok) return { ok: false, error: updated.error };
       return { ok: true, url: updated.url, fileId: updated.id };
     }
-    const created = await fileCreate(admin, staged.resourceUrl);
-    if (!created) return { ok: false, error: "Failed to create file." };
+    const created = await fileCreate(admin, staged.value.resourceUrl);
+    if (!created.ok) return { ok: false, error: created.error };
     return { ok: true, url: created.url, fileId: created.id };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -156,10 +156,12 @@ export async function createOrUpdateDocsAiFiles(
   return result;
 }
 
+type StagedTarget = { url: string; resourceUrl: string; parameters: { name: string; value: string }[] };
+
 async function getStagedUploadTarget(
   admin: AdminApiContext,
   fileSize: number
-): Promise<{ url: string; resourceUrl: string; parameters: { name: string; value: string }[] } | null> {
+): Promise<{ ok: true; value: StagedTarget } | { ok: false; error: string }> {
   return getStagedUploadTargetForFile(admin, LLMS_TXT_FILENAME, "text/plain", fileSize);
 }
 
@@ -168,7 +170,7 @@ async function getStagedUploadTargetForFile(
   filename: string,
   mimeType: string,
   fileSize: number
-): Promise<{ url: string; resourceUrl: string; parameters: { name: string; value: string }[] } | null> {
+): Promise<{ ok: true; value: StagedTarget } | { ok: false; error: string }> {
   const mutation = `#graphql
     mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
       stagedUploadsCreate(input: $input) {
@@ -209,15 +211,17 @@ async function getStagedUploadTargetForFile(
 
   const create = json.data?.stagedUploadsCreate;
   if (create?.userErrors?.length) {
+    const msg = create.userErrors.map((e) => e.message).join("; ");
     console.error("[llmo-files] stagedUploadsCreate userErrors:", create.userErrors);
-    return null;
+    return { ok: false, error: msg || "ステージドアップロードの取得に失敗しました。" };
   }
   const target = create?.stagedTargets?.[0];
-  if (!target?.url || !target.resourceUrl) return null;
+  if (!target?.url || !target.resourceUrl) {
+    return { ok: false, error: "ステージドアップロードの取得に失敗しました。" };
+  }
   return {
-    url: target.url,
-    resourceUrl: target.resourceUrl,
-    parameters: target.parameters ?? [],
+    ok: true,
+    value: { url: target.url, resourceUrl: target.resourceUrl, parameters: target.parameters ?? [] },
   };
 }
 
@@ -240,7 +244,7 @@ async function uploadToStagedUrl(
 async function fileCreate(
   admin: AdminApiContext,
   originalSource: string
-): Promise<{ id: string; url: string } | null> {
+): Promise<{ ok: true; id: string; url: string } | { ok: false; error: string }> {
   const mutation = `#graphql
     mutation fileCreate($files: [FileCreateInput!]!) {
       fileCreate(files: $files) {
@@ -270,19 +274,22 @@ async function fileCreate(
 
   const fc = json.data?.fileCreate;
   if (fc?.userErrors?.length) {
+    const msg = fc.userErrors.map((e) => e.message || e.code || e.field).join("; ");
     console.error("[llmo-files] fileCreate userErrors:", fc.userErrors);
-    return null;
+    return { ok: false, error: msg || "ファイルの作成に失敗しました。" };
   }
   const file = fc?.files?.[0];
-  if (!file?.id || !file?.url) return null;
-  return { id: file.id, url: file.url };
+  if (!file?.id || !file?.url) {
+    return { ok: false, error: "ファイルの作成に失敗しました。" };
+  }
+  return { ok: true, id: file.id, url: file.url };
 }
 
 async function fileUpdate(
   admin: AdminApiContext,
   fileId: string,
   originalSource: string
-): Promise<{ id: string; url: string } | null> {
+): Promise<{ ok: true; id: string; url: string } | { ok: false; error: string }> {
   const mutation = `#graphql
     mutation fileUpdate($files: [FileUpdateInput!]!) {
       fileUpdate(files: $files) {
@@ -312,12 +319,15 @@ async function fileUpdate(
 
   const fu = json.data?.fileUpdate;
   if (fu?.userErrors?.length) {
+    const msg = fu.userErrors.map((e) => e.message || e.code || e.field).join("; ");
     console.error("[llmo-files] fileUpdate userErrors:", fu.userErrors);
-    return null;
+    return { ok: false, error: msg || "ファイルの更新に失敗しました。" };
   }
   const file = fu?.files?.[0];
-  if (!file?.id || !file?.url) return null;
-  return { id: file.id, url: file.url };
+  if (!file?.id || !file?.url) {
+    return { ok: false, error: "ファイルの更新に失敗しました。" };
+  }
+  return { ok: true, id: file.id, url: file.url };
 }
 
 /**
