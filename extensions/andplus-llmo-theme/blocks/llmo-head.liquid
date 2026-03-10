@@ -1,17 +1,27 @@
 {% comment %}
   AP LLMO: ストアの head に LLM・エージェント向け文書への link を追加する。
-  - llms.txt: アプリで作成したファイルの URL（メタフィールド）またはフォールバックで shop.url/llms.txt
-  - llms.full.txt: アプリが自動生成する要約（将来対応）
-  - docs/ai/README.md: 考え方・壁打ちプロンプト（ユーザー定義）
+  - llms.txt: アプリで作成したファイルの CDN URL（app メタフィールド）または shop メタフィールド、未設定時はフォールバック
+  - llms.full.txt / docs/ai: アプリで管理するファイルの CDN URL（メタフィールド）、未設定時はフォールバック
 {% endcomment %}
 {%- if block.settings.enabled -%}
-  {%- if shop.metafields.llmo.llms_txt_url != blank -%}
-    <link rel="alternate" type="text/plain" href="{{ shop.metafields.llmo.llms_txt_url }}" title="LLM-oriented document (llms.txt)" />
+  {%- assign llms_txt_url = app.metafields.llmo.llms_txt_url | default: shop.metafields.llmo.llms_txt_url -%}
+  {%- if llms_txt_url != blank -%}
+    <link rel="alternate" type="text/plain" href="{{ llms_txt_url }}" title="LLM-oriented document (llms.txt)" />
   {%- else -%}
     <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.txt" title="LLM-oriented document (llms.txt)" />
   {%- endif -%}
-  <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.full.txt" title="LLM-oriented full summary (llms.full.txt)" />
-  <link rel="alternate" type="text/markdown" href="{{ shop.url }}/docs/ai/README.md" title="LLMO docs: README" />
+  {%- assign llms_full_url = app.metafields.llmo.llms_full_txt_url | default: shop.metafields.llmo.llms_full_txt_url -%}
+  {%- if llms_full_url != blank -%}
+    <link rel="alternate" type="text/plain" href="{{ llms_full_url }}" title="LLM-oriented full summary (llms.full.txt)" />
+  {%- else -%}
+    <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.full.txt" title="LLM-oriented full summary (llms.full.txt)" />
+  {%- endif -%}
+  {%- assign docs_readme_url = app.metafields.llmo.docs_ai_readme_url | default: shop.metafields.llmo.docs_ai_readme_url -%}
+  {%- if docs_readme_url != blank -%}
+    <link rel="alternate" type="text/markdown" href="{{ docs_readme_url }}" title="LLMO docs: README" />
+  {%- else -%}
+    <link rel="alternate" type="text/markdown" href="{{ shop.url }}/docs/ai/README.md" title="LLMO docs: README" />
+  {%- endif -%}
 {%- endif -%}
 {% schema %}
 {

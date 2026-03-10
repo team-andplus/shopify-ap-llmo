@@ -386,14 +386,15 @@ async function fileUpdate(
 }
 
 /**
- * ショップのメタフィールドに llms.txt の URL を保存する（テーマの head から参照するため）
+ * アプリブロックの head から参照するため、AppInstallation のメタフィールドに llms.txt の URL を保存する。
+ * （テーマ App ブロックでは app.metafields で参照する）
  */
 export async function setLlmsTxtUrlMetafield(
   admin: AdminApiContext,
   url: string
 ): Promise<boolean> {
-  const shopId = await getShopGid(admin);
-  if (!shopId) return false;
+  const ownerId = await getAppInstallationGid(admin);
+  if (!ownerId) return false;
 
   const mutation = `#graphql
     mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -410,7 +411,7 @@ export async function setLlmsTxtUrlMetafield(
           key: METAFIELD_KEY_LLMS_TXT_URL,
           type: "single_line_text_field",
           value: url,
-          ownerId: shopId,
+          ownerId,
         },
       ],
     },
@@ -432,11 +433,13 @@ export async function setLlmsTxtUrlMetafield(
   return true;
 }
 
-async function getShopGid(admin: AdminApiContext): Promise<string | null> {
+async function getAppInstallationGid(admin: AdminApiContext): Promise<string | null> {
   const query = `#graphql
-    query { shop { id } }
+    query { currentAppInstallation { id } }
   `;
   const res = await admin.graphql(query);
-  const json = (await res.json()) as { data?: { shop?: { id: string } } };
-  return json.data?.shop?.id ?? null;
+  const json = (await res.json()) as {
+    data?: { currentAppInstallation?: { id: string } };
+  };
+  return json.data?.currentAppInstallation?.id ?? null;
 }
