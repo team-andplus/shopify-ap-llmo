@@ -230,8 +230,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("does not exist") || msg.includes("Unknown column") || msg.includes("openaiApiKey")) {
+      // openaiApiKey 列がまだない DB では上記が失敗するため、列なしでリトライ
+      if (openaiApiKeyEncrypted != null) {
         await prisma.llmoSettings.upsert({
           where: { shop },
           create: baseCreate,
