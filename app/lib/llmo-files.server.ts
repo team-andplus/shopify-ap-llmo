@@ -278,7 +278,15 @@ async function fileCreate(
         userErrors?: { field: string; message: string; code?: string }[];
       };
     };
+    errors?: Array<{ message: string }>;
   };
+
+  const gqlErrors = json.errors;
+  if (gqlErrors?.length) {
+    const msg = gqlErrors.map((e) => e.message).join("; ");
+    console.error("[llmo-files] fileCreate GraphQL errors:", gqlErrors);
+    return { ok: false, error: msg };
+  }
 
   const fc = json.data?.fileCreate;
   if (fc?.userErrors?.length) {
@@ -288,7 +296,8 @@ async function fileCreate(
   }
   const file = fc?.files?.[0];
   if (!file?.id || !file?.url) {
-    return { ok: false, error: "ファイルの作成に失敗しました。" };
+    console.error("[llmo-files] fileCreate no file in response:", JSON.stringify({ files: fc?.files, originalSourceLength: originalSource?.length }));
+    return { ok: false, error: "ファイルの作成に失敗しました。（レスポンスにファイルが含まれていません。ステージドアップロードの resourceUrl を確認してください。）" };
   }
   return { ok: true, id: file.id, url: file.url };
 }
