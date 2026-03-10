@@ -190,7 +190,7 @@ async function getStagedUploadTargetForFile(
           mimeType,
           resource: "FILE",
           httpMethod: "PUT",
-          fileSize,
+          fileSize: String(fileSize), // UnsignedInt64 は文字列で渡す
         },
       ],
     },
