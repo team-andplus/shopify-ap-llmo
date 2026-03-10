@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Form, redirect, useLoaderData, useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { randomUUID } from "node:crypto";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
@@ -229,17 +230,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ...(openaiApiKeyEncrypted != null && { openaiApiKey: openaiApiKeyEncrypted }),
         },
       });
-    } catch (err) {
-      // openaiApiKey 列がまだない DB では上記が失敗するため、列なしでリトライ
-      if (openaiApiKeyEncrypted != null) {
-        await prisma.llmoSettings.upsert({
-          where: { shop },
-          create: baseCreate,
-          update: baseUpdate,
-        });
-      } else {
-        throw err;
-      }
+    } catch {
+      // openaiApiKey 列がまだない DB 用: その列を参照しない raw upsert（MySQL 想定）
+      const id = randomUUID();
+      const siteType = (formData.get("siteType") as string) || null;
+      const title = (formData.get("title") as string) || null;
+      const roleSummary = (formData.get("roleSummary") as string) || null;
+      const sectionsOutline = (formData.get("sectionsOutline") as string) || null;
+      const notesForAi = (formData.get("notesForAi") as string) || null;
+      const llmsTxtBody = (formData.get("llmsTxtBody") as string) || null;
+      const docsAiFiles = JSON.stringify(uploadedDocs);
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO LlmoSettings (id, shop, siteType, title, roleSummary, sectionsOutline, notesForAi, llmsTxtBody, docsAiFiles, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           siteType = VALUES(siteType),
+           title = VALUES(title),
+           roleSummary = VALUES(roleSummary),
+           sectionsOutline = VALUES(sectionsOutline),
+           notesForAi = VALUES(notesForAi),
+           llmsTxtBody = VALUES(llmsTxtBody),
+           docsAiFiles = VALUES(docsAiFiles),
+           updatedAt = NOW()`,
+        id,
+        shop,
+        siteType,
+        title,
+        roleSummary,
+        sectionsOutline,
+        notesForAi,
+        llmsTxtBody,
+        docsAiFiles
+      );
     }
     return redirect(request.url);
   }
