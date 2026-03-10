@@ -26,7 +26,8 @@ api_version = "2026-01"
 
 [access_scopes]
 # llms.txt を Files API で作成し shop メタフィールドに URL を保存するために必要
-scopes = "read_products,write_files,write_metafields"
+# stagedUploadsCreate は read_files + write_files の両方が必要
+scopes = "read_products,read_files,write_files,write_metafields"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
