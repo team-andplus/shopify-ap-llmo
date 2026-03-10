@@ -253,14 +253,13 @@ async function fileCreate(
   admin: AdminApiContext,
   originalSource: string
 ): Promise<{ ok: true; id: string; url: string } | { ok: false; error: string }> {
+  // File インターフェースの id, fileStatus のみ要求（GenericFile フラグメントは型によってはマッチせず空になる場合があるため）
   const mutation = `#graphql
     mutation fileCreate($files: [FileCreateInput!]!) {
       fileCreate(files: $files) {
         files {
-          ... on GenericFile {
-            id
-            url
-          }
+          id
+          fileStatus
         }
         userErrors { field message code }
       }
@@ -274,7 +273,7 @@ async function fileCreate(
   const json = (await res.json()) as {
     data?: {
       fileCreate?: {
-        files?: Array<{ id: string; url: string }>;
+        files?: Array<{ id: string; fileStatus?: string }>;
         userErrors?: { field: string; message: string; code?: string }[];
       };
     };
@@ -295,11 +294,47 @@ async function fileCreate(
     return { ok: false, error: msg || "ファイルの作成に失敗しました。" };
   }
   const file = fc?.files?.[0];
-  if (!file?.id || !file?.url) {
+  if (!file?.id) {
     console.error("[llmo-files] fileCreate no file in response:", JSON.stringify({ files: fc?.files, originalSourceLength: originalSource?.length }));
     return { ok: false, error: "ファイルの作成に失敗しました。（レスポンスにファイルが含まれていません。ステージドアップロードの resourceUrl を確認してください。）" };
   }
-  return { ok: true, id: file.id, url: file.url };
+  // 非同期処理のため url は node クエリで取得。即取得を試みてから必要ならポーリング
+  let fetched = await fetchFileById(admin, file.id);
+  if (fetched?.url) return { ok: true, id: file.id, url: fetched.url };
+  const maxAttempts = 10;
+  const delayMs = 1500;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, delayMs));
+    fetched = await fetchFileById(admin, file.id);
+    if (fetched?.url) return { ok: true, id: file.id, url: fetched.url };
+  }
+  console.error("[llmo-files] fileCreate url not available after polling:", file.id);
+  return { ok: false, error: "ファイルの作成に失敗しました。（処理がタイムアウトしました。しばらくしてから「設定」→「ファイル」で確認してください。）" };
+}
+
+async function fetchFileById(
+  admin: AdminApiContext,
+  fileId: string
+): Promise<{ url: string } | null> {
+  const query = `#graphql
+    query getFile($id: ID!) {
+      node(id: $id) {
+        ... on GenericFile {
+          id
+          url
+          fileStatus
+        }
+      }
+    }`;
+  const res = await admin.graphql(query, { variables: { id: fileId } });
+  const json = (await res.json()) as {
+    data?: { node?: { id: string; url?: string | null; fileStatus?: string } };
+  };
+  const node = json.data?.node;
+  if (node && typeof node === "object" && "url" in node && node.url) {
+    return { url: node.url };
+  }
+  return null;
 }
 
 async function fileUpdate(
