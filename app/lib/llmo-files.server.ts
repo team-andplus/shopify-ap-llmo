@@ -59,6 +59,9 @@ export async function createOrUpdateLlmsTxtFile(
     const uploaded = await uploadToStagedUrl(staged.value.url, staged.value.parameters, buffer);
     if (!uploaded.ok) return { ok: false, error: uploaded.error };
 
+    // ステージド先ストレージが resourceUrl を用意するまで短く待つ（POST 直後に fileCreate すると files が空になることがある）
+    await new Promise((r) => setTimeout(r, 2500));
+
     const created = await fileCreate(admin, staged.value.resourceUrl);
     if (!created.ok) return { ok: false, error: created.error };
     return { ok: true, url: created.url, fileId: created.id };
