@@ -62,8 +62,11 @@ const emptyAggregates: LlmoAccessLogAggregates = {
 
 /**
  * ログファイルを読んで都度集計。ファイルが無い・空の場合は空の集計を返す。
+ * shopFilter を渡すとそのストアの行だけ集計（管理画面用。未指定なら全件＝内部用）。
  */
-export async function readAndAggregateLlmoAccessLog(): Promise<LlmoAccessLogAggregates> {
+export async function readAndAggregateLlmoAccessLog(
+  shopFilter?: string | null
+): Promise<LlmoAccessLogAggregates> {
   const logPath = getLogPath();
   let raw: string;
   try {
@@ -80,6 +83,7 @@ export async function readAndAggregateLlmoAccessLog(): Promise<LlmoAccessLogAggr
   const byDate: Record<string, number> = {};
   const recent: LlmoAccessLogEntry[] = [];
   let total = 0;
+  const filterShop = shopFilter ?? undefined;
 
   const lines = raw.split(/\n/).filter((s) => s.trim());
   for (const line of lines) {
@@ -90,6 +94,7 @@ export async function readAndAggregateLlmoAccessLog(): Promise<LlmoAccessLogAggr
       const shop = typeof (row as LlmoAccessLogEntry).shop === "string" ? (row as LlmoAccessLogEntry).shop : "";
       const path = typeof (row as LlmoAccessLogEntry).path === "string" ? (row as LlmoAccessLogEntry).path : "";
       const ua = typeof (row as LlmoAccessLogEntry).ua === "string" ? (row as LlmoAccessLogEntry).ua : "";
+      if (filterShop !== undefined && shop !== filterShop) continue;
       const day = t.slice(0, 10);
       byShop[shop] = (byShop[shop] ?? 0) + 1;
       byPath[path] = (byPath[path] ?? 0) + 1;

@@ -5,9 +5,10 @@ import { getLocaleFromRequest, getTranslations } from "../lib/i18n";
 import { readAndAggregateLlmoAccessLog } from "../lib/llmo-access-log.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shop = session?.shop ?? "";
   const locale = getLocaleFromRequest(request);
-  const aggregates = await readAndAggregateLlmoAccessLog();
+  const aggregates = await readAndAggregateLlmoAccessLog(shop);
   return { aggregates, locale, t: getTranslations(locale) };
 };
 
