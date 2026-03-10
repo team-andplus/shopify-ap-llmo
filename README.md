@@ -138,6 +138,16 @@ npm run deploy       # Shopify に extension と app をデプロイ
 
 本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL を指定。ビルド・DB マイグレーションは `npm run setup:prod`（prisma-mysql 使用）で実行する。
 
+**OpenAI API Key 用カラムがない場合**（「AI で生成」を使うのに「API Key が設定されていません」と出る場合）: 本番 MySQL の `LlmoSettings` に `openaiApiKey` 列が無いと保存・表示できません。以下で追加してください。
+```bash
+# 本番サーバーで（DATABASE_URL が MySQL を指していること）
+sh scripts/migrate-mysql.sh
+```
+または SQL を直接実行する場合:
+```sql
+ALTER TABLE `LlmoSettings` ADD COLUMN `openaiApiKey` TEXT NULL;
+```
+
 **Nginx**: 本番サーバーで `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` を Node にプロキシする **location の追加**が必要。設定例は **docs/NGINX.md** を参照。
 
 ### 構成

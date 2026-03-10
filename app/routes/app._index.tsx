@@ -76,7 +76,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (shop) {
       try {
         const rows = await prisma.$queryRawUnsafe<{ openaiApiKey: string | null }[]>(
-          "SELECT openaiApiKey FROM LlmoSettings WHERE shop = ? LIMIT 1",
+          "SELECT `openaiApiKey` FROM `LlmoSettings` WHERE shop = ? LIMIT 1",
           shop
         );
         const val = rows[0]?.openaiApiKey;
