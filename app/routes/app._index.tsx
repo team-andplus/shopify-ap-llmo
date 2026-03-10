@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useLoaderData, useFetcher, useNavigation } from "react-router";
+import { Form, redirect, useLoaderData, useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "node:crypto";
 import { authenticate } from "../shopify.server";
@@ -262,13 +262,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         docsAiFiles
       );
     }
-    // 埋め込み時は request.url が .data?... のデータ用URLになっていることがあるため、
-    // リダイレクト先はドキュメント用URL（.data を除く）にして画面が正しく再描画されるようにする
-    const saveUrl = new URL(request.url);
-    if (saveUrl.pathname.endsWith(".data")) {
-      saveUrl.pathname = saveUrl.pathname.replace(/\.data$/, "");
-    }
-    return redirect(saveUrl.pathname + saveUrl.search);
+    // リダイレクトは埋め込み環境で 404 や表示崩れの原因になるため、JSON を返して fetcher で loader 再検証させる
+    return Response.json({ ok: true });
   }
 
   if (intent === "saveFile") {
@@ -387,9 +382,8 @@ const emptyDocRow = (): DocsAiFileEntry => ({
 export default function AppIndex() {
   const data = useLoaderData<Awaited<ReturnType<typeof loader>>>();
   const t = data.t;
-  const navigation = useNavigation();
   const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; message?: string; ok?: boolean; url?: string }>();
-  const isSaving = navigation.state === "submitting" && navigation.formData?.get("intent") === "save";
+  const isSaving = fetcher.state === "submitting" && fetcher.formData?.get("intent") === "save";
   const prompt = fetcher.data?.prompt;
   const lastIntent = (fetcher.formData as FormData | undefined)?.get("intent");
   const isPromptLoading = fetcher.state !== "idle" && lastIntent === "getPrompt";
@@ -684,8 +678,15 @@ export default function AppIndex() {
 
           <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button
-              type="submit"
+              type="button"
               disabled={isSaving}
+              onClick={() => {
+                const form = document.getElementById("llmo-form") as HTMLFormElement;
+                if (!form) return;
+                const fd = new FormData(form);
+                fd.set("intent", "save");
+                fetcher.submit(fd, { method: "post" });
+              }}
               style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: isSaving ? "wait" : "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
             >
               {isSaving && (
