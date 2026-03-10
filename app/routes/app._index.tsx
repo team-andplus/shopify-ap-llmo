@@ -306,6 +306,17 @@ export default function AppIndex() {
     }
   }, [fetcher.state, fetcher.data?.body]);
 
+  // API Key 未設定などでサーバーがエラーを返したときに alert 表示
+  useEffect(() => {
+    if (
+      fetcher.state === "idle" &&
+      fetcher.formData?.get("intent") === "generateLlmsTxt" &&
+      fetcher.data?.error === "API_KEY_REQUIRED"
+    ) {
+      alert(t.aiErrorNoKey);
+    }
+  }, [fetcher.state, fetcher.formData?.get("intent"), fetcher.data?.error, t.aiErrorNoKey]);
+
   const initialDocs =
     data.settings.docsAiFiles?.length > 0
       ? data.settings.docsAiFiles
@@ -346,7 +357,10 @@ export default function AppIndex() {
         maxWidth: "1200px",
       }}
     >
-      <style>{`@media (max-width: 900px) { .app-home-grid { grid-template-columns: 1fr !important; } }`}</style>
+      <style>{`
+        @media (max-width: 900px) { .app-home-grid { grid-template-columns: 1fr !important; } }
+        @keyframes ap-llmo-spin { to { transform: rotate(360deg); } }
+      `}</style>
 
       <main style={{ minWidth: 0 }}>
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{t.appTitle}</h1>
@@ -553,8 +567,12 @@ export default function AppIndex() {
             </button>
             <button
               type="button"
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
               onClick={() => {
+                if (!data.settings.openaiApiKeySet) {
+                  alert(t.aiErrorNoKey);
+                  return;
+                }
                 const form = document.getElementById("llmo-form") as HTMLFormElement;
                 if (!form) return;
                 const fd = new FormData(form);
@@ -563,6 +581,20 @@ export default function AppIndex() {
               }}
               disabled={isAiGenerating}
             >
+              {isAiGenerating && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "1em",
+                    height: "1em",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "ap-llmo-spin 0.7s linear infinite",
+                  }}
+                  aria-hidden
+                />
+              )}
               {isAiGenerating ? t.aiGenerating : t.aiGenerate}
             </button>
             <button
