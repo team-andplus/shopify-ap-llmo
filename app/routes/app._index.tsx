@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useLoaderData, useFetcher } from "react-router";
+import { Form, Link, redirect, useLoaderData, useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "node:crypto";
 import { authenticate } from "../shopify.server";
@@ -524,7 +524,12 @@ export default function AppIndex() {
           {t.error}: {loaderError}
         </p>
       )}
-      <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{t.appTitle}</h1>
+      <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
+        {t.appTitle}
+        <span style={{ marginLeft: "1rem", fontWeight: 400, fontSize: "0.875rem" }}>
+          <Link to="access-log" style={{ color: "var(--p-color-text-secondary, #6d7175)" }}>{t.accessLogNav}</Link>
+        </span>
+      </h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
         {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}
       </p>
