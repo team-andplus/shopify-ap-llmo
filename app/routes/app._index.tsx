@@ -304,9 +304,23 @@ export default function AppIndex() {
   const t = data.t;
   const fetcher = useFetcher<{ prompt?: string; body?: string; error?: string; message?: string; ok?: boolean; url?: string }>();
   const prompt = fetcher.data?.prompt;
-  const isPromptLoading = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "getPrompt";
-  const isAiGenerating = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "generateLlmsTxt";
-  const fileResult = fetcher.formData?.get("intent") === "saveFile" ? fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined : null;
+  const lastIntent = (fetcher.formData as FormData | undefined)?.get("intent");
+  const isPromptLoading = fetcher.state !== "idle" && lastIntent === "getPrompt";
+  const isAiGenerating = fetcher.state !== "idle" && lastIntent === "generateLlmsTxt";
+  const fileResult =
+    lastIntent === "saveFile"
+      ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
+      : null;
+  // 400 などで intent が消えてもエラー本文を表示（generateLlmsTxt は上記ブロックで表示するので除外）
+  const anyFetcherError =
+    fetcher.state === "idle" &&
+    lastIntent !== "generateLlmsTxt" &&
+    fetcher.data &&
+    typeof (fetcher.data as { error?: string }).error === "string" &&
+    !(fetcher.data as { body?: string }).body &&
+    !(fetcher.data as { prompt?: string }).prompt
+      ? (fetcher.data as { error: string }).error
+      : null;
   const llmsTxtBodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -545,7 +559,7 @@ export default function AppIndex() {
             />
           </label>
 
-          {fetcher.data?.error && fetcher.formData?.get("intent") === "generateLlmsTxt" && (
+          {fetcher.data?.error && lastIntent === "generateLlmsTxt" && (
             <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
               {fetcher.data.error === "API_KEY_REQUIRED"
                 ? t.aiErrorNoKey
@@ -651,7 +665,11 @@ export default function AppIndex() {
       )}
 
       {fileResult?.ok && <p style={{ marginTop: "1rem", color: "#008060", fontSize: "0.9375rem" }}>{t.fileSaved}</p>}
-      {fileResult && !fileResult.ok && <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>{t.error}: {fileResult.error}</p>}
+      {(fileResult && !fileResult.ok ? fileResult.error : anyFetcherError) && (
+        <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>
+          {t.error}: {fileResult && !fileResult.ok ? fileResult.error : anyFetcherError}
+        </p>
+      )}
 
       {data.settings.llmsTxtFileUrl && (
         <p style={{ marginTop: "1rem", fontSize: "0.875rem", color: "#6d7175" }}>
