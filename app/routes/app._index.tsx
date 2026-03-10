@@ -262,7 +262,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         docsAiFiles
       );
     }
-    return redirect(request.url);
+    // 埋め込み時は request.url が .data?... のデータ用URLになっていることがあるため、
+    // リダイレクト先はドキュメント用URL（.data を除く）にして画面が正しく再描画されるようにする
+    const saveUrl = new URL(request.url);
+    if (saveUrl.pathname.endsWith(".data")) {
+      saveUrl.pathname = saveUrl.pathname.replace(/\.data$/, "");
+    }
+    return redirect(saveUrl.pathname + saveUrl.search);
   }
 
   if (intent === "saveFile") {
