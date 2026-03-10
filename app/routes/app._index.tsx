@@ -71,6 +71,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         })
       : null;
 
+    // API Key が設定済みかだけ別途取得（列がなければ false、値は返さない）
+    let openaiApiKeySet = false;
+    if (shop) {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ openaiApiKey: string | null }[]>(
+          "SELECT openaiApiKey FROM LlmoSettings WHERE shop = ? LIMIT 1",
+          shop
+        );
+        const val = rows[0]?.openaiApiKey;
+        openaiApiKeySet = typeof val === "string" && val.length > 0;
+      } catch {
+        openaiApiKeySet = false;
+      }
+    }
+
     const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
 
     return {
@@ -87,7 +102,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtBody: settings.llmsTxtBody ?? "",
             llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
             docsAiFiles,
-            openaiApiKeySet: false, // openaiApiKey は select していない（列がない DB 対応）
+            openaiApiKeySet,
           }
         : emptySettings,
       loaderError: null as string | null,
