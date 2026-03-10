@@ -2,11 +2,13 @@ import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { writeLlmoAccessLog } from "../lib/llmo-access-log.server";
 
 /**
  * App Proxy: ストアの /apps/llmo/llms.txt 等にアクセスすると、
  * DB から該当ファイルの CDN URL を取得して 302 リダイレクトする。
  * メタフィールドは使わず、アプリの DB のみで完結する。
+ * 通過時に log/llmo-access.log に 1 行追記（見える化・集計用）。
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.public.appProxy(request);
@@ -24,6 +26,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     idx >= 0
       ? pathname.slice(idx + "app-proxy/".length).replace(/\/$/, "")
       : pathname.replace(/^\/+/, "");
+
+  writeLlmoAccessLog(shop, path, request.headers.get("user-agent"));
 
   const settings = await prisma.llmoSettings.findUnique({
     where: { shop },
