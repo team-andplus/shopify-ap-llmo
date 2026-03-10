@@ -386,15 +386,19 @@ async function fileUpdate(
 }
 
 /**
- * アプリブロックの head から参照するため、AppInstallation のメタフィールドに llms.txt の URL を保存する。
- * （テーマ App ブロックでは app.metafields で参照する）
+ * head の link で参照するため、Shop と AppInstallation の両方に llms.txt の URL を保存する。
+ * テーマでは shop.metafields / アプリブロックでは app.metafields のどちらかで参照される。
  */
 export async function setLlmsTxtUrlMetafield(
   admin: AdminApiContext,
   url: string
 ): Promise<boolean> {
-  const ownerId = await getAppInstallationGid(admin);
-  if (!ownerId) return false;
+  const [shopId, appInstallationId] = await Promise.all([
+    getShopGid(admin),
+    getAppInstallationGid(admin),
+  ]);
+  const owners = [shopId, appInstallationId].filter(Boolean);
+  if (owners.length === 0) return false;
 
   const mutation = `#graphql
     mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -403,18 +407,16 @@ export async function setLlmsTxtUrlMetafield(
         userErrors { field message code }
       }
     }`;
+  const metafields = owners.map((ownerId) => ({
+    namespace: METAFIELD_NAMESPACE,
+    key: METAFIELD_KEY_LLMS_TXT_URL,
+    type: "single_line_text_field",
+    value: url,
+    ownerId,
+  }));
+
   const res = await admin.graphql(mutation, {
-    variables: {
-      metafields: [
-        {
-          namespace: METAFIELD_NAMESPACE,
-          key: METAFIELD_KEY_LLMS_TXT_URL,
-          type: "single_line_text_field",
-          value: url,
-          ownerId,
-        },
-      ],
-    },
+    variables: { metafields },
   });
 
   const json = (await res.json()) as {
@@ -431,6 +433,15 @@ export async function setLlmsTxtUrlMetafield(
     return false;
   }
   return true;
+}
+
+async function getShopGid(admin: AdminApiContext): Promise<string | null> {
+  const query = `#graphql
+    query { shop { id } }
+  `;
+  const res = await admin.graphql(query);
+  const json = (await res.json()) as { data?: { shop?: { id: string } } };
+  return json.data?.shop?.id ?? null;
 }
 
 async function getAppInstallationGid(admin: AdminApiContext): Promise<string | null> {
