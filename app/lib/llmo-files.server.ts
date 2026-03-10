@@ -45,7 +45,7 @@ export async function createOrUpdateLlmsTxtFile(
       if (!staged.ok) return { ok: false, error: staged.error };
 
       const uploaded = await uploadToStagedUrl(staged.value.url, staged.value.parameters, buffer);
-      if (!uploaded) return { ok: false, error: "ファイルのアップロードに失敗しました。" };
+      if (!uploaded.ok) return { ok: false, error: uploaded.error };
 
       const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
       if (!updated.ok) return { ok: false, error: updated.error };
@@ -57,7 +57,7 @@ export async function createOrUpdateLlmsTxtFile(
     if (!staged.ok) return { ok: false, error: staged.error };
 
     const uploaded = await uploadToStagedUrl(staged.value.url, staged.value.parameters, buffer);
-    if (!uploaded) return { ok: false, error: "ファイルのアップロードに失敗しました。" };
+    if (!uploaded.ok) return { ok: false, error: uploaded.error };
 
     const created = await fileCreate(admin, staged.value.resourceUrl);
     if (!created.ok) return { ok: false, error: created.error };
@@ -98,9 +98,10 @@ export async function createOrUpdateMdFile(
       staged.value.url,
       staged.value.parameters,
       buffer,
-      "text/markdown; charset=utf-8"
+      "text/markdown; charset=utf-8",
+      filename
     );
-    if (!uploaded) return { ok: false, error: "Failed to upload file." };
+    if (!uploaded.ok) return { ok: false, error: uploaded.error };
 
     if (existingFileId) {
       const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
@@ -189,7 +190,7 @@ async function getStagedUploadTargetForFile(
           filename,
           mimeType,
           resource: "FILE",
-          httpMethod: "PUT",
+          httpMethod: "POST", // POST + multipart/form-data でアップロードする
           fileSize: String(fileSize), // UnsignedInt64 は文字列で渡す
         },
       ],
@@ -229,16 +230,23 @@ async function uploadToStagedUrl(
   url: string,
   parameters: { name: string; value: string }[],
   body: Buffer,
-  contentType = "text/plain; charset=utf-8"
-): Promise<boolean> {
-  const parsed = new URL(url);
-  parameters.forEach((p) => parsed.searchParams.set(p.name, p.value));
-  const res = await fetch(parsed.toString(), {
-    method: "PUT",
-    body: new Uint8Array(body),
-    headers: { "Content-Type": contentType },
+  contentType = "text/plain; charset=utf-8",
+  filename = LLMS_TXT_FILENAME
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const formData = new FormData();
+  parameters.forEach((p) => formData.append(p.name, p.value));
+  formData.append("file", new Blob([body], { type: contentType }), filename);
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
   });
-  return res.ok;
+
+  if (res.ok) return { ok: true };
+  const text = await res.text();
+  const msg = text.slice(0, 200) || `HTTP ${res.status}`;
+  console.error("[llmo-files] staged upload POST failed:", res.status, msg);
+  return { ok: false, error: `アップロード失敗 (${res.status}): ${msg}` };
 }
 
 async function fileCreate(
