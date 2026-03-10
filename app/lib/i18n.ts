@@ -82,6 +82,7 @@ export const translations = {
     aiGenerating: "生成中…",
     aiErrorNoKey: "OpenAI API Key が設定されていません。上の「OpenAI API Key」欄に入力し、設定を保存してから「AI で生成」をご利用ください。",
     aiErrorFailed: "AI 生成に失敗しました。",
+    saveFileBodyEmpty: "llms.txt 本文が空です。先に内容を入力するか、「AI で生成」で生成してから「ファイルを生成・保存」を実行してください。",
   },
   en: {
     appTitle: "AP LLMO",
@@ -160,6 +161,7 @@ export const translations = {
     aiGenerating: "Generating…",
     aiErrorNoKey: "OpenAI API Key is not set. Enter your API Key in the \"OpenAI API Key\" field above, save settings, then use \"Generate with AI\".",
     aiErrorFailed: "AI generation failed.",
+    saveFileBodyEmpty: "llms.txt body is empty. Enter content or use \"Generate with AI\" first, then run \"Generate & save file\".",
   },
 } as const;
 

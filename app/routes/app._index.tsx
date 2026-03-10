@@ -61,7 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           llmsTxtBody: settings.llmsTxtBody ?? "",
           llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
           docsAiFiles,
-          openaiApiKeySet: !!settings.openaiApiKey,
+          openaiApiKeySet: !!(settings as { openaiApiKey?: string | null }).openaiApiKey,
         }
       : {
           siteType: "",
@@ -203,47 +203,56 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "saveFile") {
-    const llmsTxtBody = (formData.get("llmsTxtBody") as string) ?? "";
-    const existing = await prisma.llmoSettings.findUnique({
-      where: { shop },
-    });
-    const result = await createOrUpdateLlmsTxtFile(
-      admin,
-      llmsTxtBody,
-      existing?.llmsTxtFileId ?? null
-    );
+    try {
+      const llmsTxtBody = (formData.get("llmsTxtBody") as string) ?? "";
+      const existing = await prisma.llmoSettings.findUnique({
+        where: { shop },
+      });
+      const result = await createOrUpdateLlmsTxtFile(
+        admin,
+        llmsTxtBody,
+        existing?.llmsTxtFileId ?? null
+      );
 
-    if (!result.ok) {
+      if (!result.ok) {
+        return Response.json(
+          { ok: false, error: result.error },
+          { status: 400 }
+        );
+      }
+
+      const metafieldOk = await setLlmsTxtUrlMetafield(admin, result.url);
+      if (!metafieldOk) {
+        console.error("[ap-llmo] metafield set failed");
+      }
+
+      await prisma.llmoSettings.upsert({
+        where: { shop },
+        create: {
+          shop,
+          llmsTxtBody,
+          llmsTxtFileUrl: result.url,
+          llmsTxtFileId: result.fileId,
+        },
+        update: {
+          llmsTxtBody,
+          llmsTxtFileUrl: result.url,
+          llmsTxtFileId: result.fileId,
+        },
+      });
+
+      return Response.json({
+        ok: true,
+        url: result.url,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] saveFile error:", err);
       return Response.json(
-        { ok: false, error: result.error },
-        { status: 400 }
+        { ok: false, error: message },
+        { status: 500 }
       );
     }
-
-    const metafieldOk = await setLlmsTxtUrlMetafield(admin, result.url);
-    if (!metafieldOk) {
-      console.error("[ap-llmo] metafield set failed");
-    }
-
-    await prisma.llmoSettings.upsert({
-      where: { shop },
-      create: {
-        shop,
-        llmsTxtBody,
-        llmsTxtFileUrl: result.url,
-        llmsTxtFileId: result.fileId,
-      },
-      update: {
-        llmsTxtBody,
-        llmsTxtFileUrl: result.url,
-        llmsTxtFileId: result.fileId,
-      },
-    });
-
-    return Response.json({
-      ok: true,
-      url: result.url,
-    });
   }
 
   return Response.json({ error: "Unknown intent" }, { status: 400 });
@@ -308,14 +317,15 @@ export default function AppIndex() {
 
   // API Key 未設定などでサーバーがエラーを返したときに alert 表示
   useEffect(() => {
+    const intent = (fetcher.formData as FormData | undefined)?.get("intent");
     if (
       fetcher.state === "idle" &&
-      fetcher.formData?.get("intent") === "generateLlmsTxt" &&
+      intent === "generateLlmsTxt" &&
       fetcher.data?.error === "API_KEY_REQUIRED"
     ) {
       alert(t.aiErrorNoKey);
     }
-  }, [fetcher.state, fetcher.formData?.get("intent"), fetcher.data?.error, t.aiErrorNoKey]);
+  }, [fetcher.state, fetcher.formData, fetcher.data?.error, t.aiErrorNoKey]);
 
   const initialDocs =
     data.settings.docsAiFiles?.length > 0
@@ -601,6 +611,11 @@ export default function AppIndex() {
               type="button"
               style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
               onClick={() => {
+                const body = llmsTxtBodyRef.current?.value?.trim() ?? "";
+                if (!body) {
+                  alert(t.saveFileBodyEmpty);
+                  return;
+                }
                 const form = document.getElementById("llmo-form") as HTMLFormElement;
                 if (!form) return;
                 const fd = new FormData(form);
