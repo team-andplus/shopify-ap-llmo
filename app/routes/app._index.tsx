@@ -10,6 +10,7 @@ import {
   createOrUpdateLlmsTxtFile,
   createOrUpdateLlmsFullTxtFile,
   createOrUpdateDocsAiFiles,
+  setupAllUrlRedirects,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
 import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement, refineLlmsFullTxt } from "../lib/openai.server";
@@ -316,6 +317,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         docsAiFiles
       );
     }
+
+    // docs/ai ファイルの URL リダイレクトを設定
+    const docsForRedirect = uploadedDocs
+      .filter((d) => d.filename && d.fileUrl)
+      .map((d) => ({ filename: d.filename, fileUrl: d.fileUrl }));
+    if (docsForRedirect.length > 0) {
+      setupAllUrlRedirects(admin, { docsAiFiles: docsForRedirect }).catch((e) =>
+        console.error("[ap-llmo] setupAllUrlRedirects for docs failed:", e)
+      );
+    }
+
     // リダイレクトは埋め込み環境で 404 や表示崩れの原因になるため、JSON を返して fetcher で loader 再検証させる
     return Response.json({ ok: true });
   }
@@ -385,6 +397,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
 
+      // URL リダイレクトを設定（/llms.full.txt → CDN URL）
+      setupAllUrlRedirects(admin, { llmsFullTxtUrl: result.url }).catch((e) =>
+        console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
+      );
+
       return Response.json({ ok: true, url: result.url });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -446,6 +463,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           result.fileId
         );
       }
+
+      // URL リダイレクトを設定（/llms.txt → CDN URL）
+      setupAllUrlRedirects(admin, { llmsTxtUrl: result.url }).catch((e) =>
+        console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
+      );
 
       return Response.json({
         ok: true,

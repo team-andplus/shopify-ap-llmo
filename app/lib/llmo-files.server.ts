@@ -505,3 +505,159 @@ async function getAppInstallationGid(admin: AdminApiContext): Promise<string | n
   };
   return json.data?.currentAppInstallation?.id ?? null;
 }
+
+/**
+ * URL リダイレクトを作成または更新する。
+ * /llms.txt → CDN URL のような直接リダイレクトを設定。
+ */
+export async function createOrUpdateUrlRedirect(
+  admin: AdminApiContext,
+  fromPath: string,
+  toUrl: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  try {
+    const existing = await findUrlRedirectByPath(admin, fromPath);
+
+    if (existing) {
+      const mutation = `#graphql
+        mutation urlRedirectUpdate($id: ID!, $urlRedirect: UrlRedirectInput!) {
+          urlRedirectUpdate(id: $id, urlRedirect: $urlRedirect) {
+            urlRedirect { id }
+            userErrors { field message }
+          }
+        }
+      `;
+      const res = await admin.graphql(mutation, {
+        variables: {
+          id: existing.id,
+          urlRedirect: { path: fromPath, target: toUrl },
+        },
+      });
+      const json = (await res.json()) as {
+        data?: {
+          urlRedirectUpdate?: {
+            urlRedirect?: { id: string };
+            userErrors?: { field: string; message: string }[];
+          };
+        };
+      };
+      if (json.data?.urlRedirectUpdate?.userErrors?.length) {
+        const msg = json.data.urlRedirectUpdate.userErrors.map((e) => e.message).join("; ");
+        return { ok: false, error: msg };
+      }
+      return { ok: true, id: existing.id };
+    }
+
+    const mutation = `#graphql
+      mutation urlRedirectCreate($urlRedirect: UrlRedirectInput!) {
+        urlRedirectCreate(urlRedirect: $urlRedirect) {
+          urlRedirect { id }
+          userErrors { field message }
+        }
+      }
+    `;
+    const res = await admin.graphql(mutation, {
+      variables: {
+        urlRedirect: { path: fromPath, target: toUrl },
+      },
+    });
+    const json = (await res.json()) as {
+      data?: {
+        urlRedirectCreate?: {
+          urlRedirect?: { id: string };
+          userErrors?: { field: string; message: string }[];
+        };
+      };
+    };
+    if (json.data?.urlRedirectCreate?.userErrors?.length) {
+      const msg = json.data.urlRedirectCreate.userErrors.map((e) => e.message).join("; ");
+      return { ok: false, error: msg };
+    }
+    const id = json.data?.urlRedirectCreate?.urlRedirect?.id;
+    if (!id) {
+      return { ok: false, error: "リダイレクトの作成に失敗しました。" };
+    }
+    return { ok: true, id };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[llmo-files] createOrUpdateUrlRedirect error:", err);
+    return { ok: false, error: message };
+  }
+}
+
+async function findUrlRedirectByPath(
+  admin: AdminApiContext,
+  path: string
+): Promise<{ id: string; target: string } | null> {
+  const query = `#graphql
+    query findRedirect($query: String!) {
+      urlRedirects(first: 1, query: $query) {
+        edges {
+          node {
+            id
+            path
+            target
+          }
+        }
+      }
+    }
+  `;
+  const res = await admin.graphql(query, {
+    variables: { query: `path:${path}` },
+  });
+  const json = (await res.json()) as {
+    data?: {
+      urlRedirects?: {
+        edges: Array<{ node: { id: string; path: string; target: string } }>;
+      };
+    };
+  };
+  const node = json.data?.urlRedirects?.edges?.[0]?.node;
+  if (node && node.path === path) {
+    return { id: node.id, target: node.target };
+  }
+  return null;
+}
+
+/**
+ * llms.txt, llms.full.txt, docs/ai/*.md のリダイレクトをまとめて設定する。
+ */
+export async function setupAllUrlRedirects(
+  admin: AdminApiContext,
+  options: {
+    llmsTxtUrl?: string | null;
+    llmsFullTxtUrl?: string | null;
+    docsAiFiles?: Array<{ filename: string; fileUrl?: string | null }>;
+  }
+): Promise<void> {
+  const tasks: Promise<unknown>[] = [];
+
+  if (options.llmsTxtUrl) {
+    tasks.push(
+      createOrUpdateUrlRedirect(admin, "/llms.txt", options.llmsTxtUrl).catch((e) =>
+        console.error("[llmo-files] redirect /llms.txt failed:", e)
+      )
+    );
+  }
+  if (options.llmsFullTxtUrl) {
+    tasks.push(
+      createOrUpdateUrlRedirect(admin, "/llms.full.txt", options.llmsFullTxtUrl).catch((e) =>
+        console.error("[llmo-files] redirect /llms.full.txt failed:", e)
+      )
+    );
+  }
+  if (options.docsAiFiles) {
+    for (const doc of options.docsAiFiles) {
+      if (doc.filename && doc.fileUrl) {
+        const path = `/docs/ai/${doc.filename}`;
+        tasks.push(
+          createOrUpdateUrlRedirect(admin, path, doc.fileUrl).catch((e) =>
+            console.error(`[llmo-files] redirect ${path} failed:`, e)
+          )
+        );
+      }
+    }
+  }
+
+  await Promise.all(tasks);
+}
