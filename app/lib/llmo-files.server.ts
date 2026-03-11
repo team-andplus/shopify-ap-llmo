@@ -578,7 +578,15 @@ export async function createOrUpdateUrlRedirect(
       return { ok: false, error: "リダイレクトの作成に失敗しました。" };
     }
     return { ok: true, id };
-  } catch (err) {
+  } catch (err: unknown) {
+    // GraphQL クライアントが投げるエラーの詳細を取り出す
+    const errObj = err as { errors?: { graphQLErrors?: Array<{ message: string }> } };
+    if (errObj?.errors?.graphQLErrors) {
+      const gqlErrors = errObj.errors.graphQLErrors;
+      console.error("[llmo-files] createOrUpdateUrlRedirect graphQLErrors:", JSON.stringify(gqlErrors));
+      const message = gqlErrors.map((e) => e.message).join("; ") || "Unknown GraphQL error";
+      return { ok: false, error: message };
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error("[llmo-files] createOrUpdateUrlRedirect error:", err);
     return { ok: false, error: message };
@@ -602,21 +610,37 @@ async function findUrlRedirectByPath(
       }
     }
   `;
-  const res = await admin.graphql(query, {
-    variables: { query: `path:${path}` },
-  });
-  const json = (await res.json()) as {
-    data?: {
-      urlRedirects?: {
-        edges: Array<{ node: { id: string; path: string; target: string } }>;
+  try {
+    const res = await admin.graphql(query, {
+      variables: { query: `path:${path}` },
+    });
+    const json = (await res.json()) as {
+      data?: {
+        urlRedirects?: {
+          edges: Array<{ node: { id: string; path: string; target: string } }>;
+        };
       };
+      errors?: Array<{ message: string }>;
     };
-  };
-  const node = json.data?.urlRedirects?.edges?.[0]?.node;
-  if (node && node.path === path) {
-    return { id: node.id, target: node.target };
+    if (json.errors?.length) {
+      console.error("[llmo-files] findUrlRedirectByPath GraphQL errors:", JSON.stringify(json.errors));
+      return null;
+    }
+    const node = json.data?.urlRedirects?.edges?.[0]?.node;
+    if (node && node.path === path) {
+      return { id: node.id, target: node.target };
+    }
+    return null;
+  } catch (err: unknown) {
+    // GraphQL クライアントが投げるエラーの詳細を取り出す
+    const errObj = err as { errors?: { graphQLErrors?: unknown[] } };
+    if (errObj?.errors?.graphQLErrors) {
+      console.error("[llmo-files] findUrlRedirectByPath graphQLErrors:", JSON.stringify(errObj.errors.graphQLErrors));
+    } else {
+      console.error("[llmo-files] findUrlRedirectByPath error:", err);
+    }
+    return null;
   }
-  return null;
 }
 
 /**
@@ -630,20 +654,32 @@ export async function setupAllUrlRedirects(
     docsAiFiles?: Array<{ filename: string; fileUrl?: string | null }>;
   }
 ): Promise<void> {
+  console.log("[llmo-files] setupAllUrlRedirects called with:", {
+    llmsTxtUrl: options.llmsTxtUrl ? "set" : "not set",
+    llmsFullTxtUrl: options.llmsFullTxtUrl ? "set" : "not set",
+    docsAiFilesCount: options.docsAiFiles?.length ?? 0,
+  });
+
   const tasks: Promise<unknown>[] = [];
 
   if (options.llmsTxtUrl) {
     tasks.push(
-      createOrUpdateUrlRedirect(admin, "/llms.txt", options.llmsTxtUrl).catch((e) =>
-        console.error("[llmo-files] redirect /llms.txt failed:", e)
-      )
+      createOrUpdateUrlRedirect(admin, "/llms.txt", options.llmsTxtUrl).then((result) => {
+        console.log("[llmo-files] redirect /llms.txt result:", result);
+        return result;
+      }).catch((e) => {
+        console.error("[llmo-files] redirect /llms.txt failed:", e);
+      })
     );
   }
   if (options.llmsFullTxtUrl) {
     tasks.push(
-      createOrUpdateUrlRedirect(admin, "/llms.full.txt", options.llmsFullTxtUrl).catch((e) =>
-        console.error("[llmo-files] redirect /llms.full.txt failed:", e)
-      )
+      createOrUpdateUrlRedirect(admin, "/llms.full.txt", options.llmsFullTxtUrl).then((result) => {
+        console.log("[llmo-files] redirect /llms.full.txt result:", result);
+        return result;
+      }).catch((e) => {
+        console.error("[llmo-files] redirect /llms.full.txt failed:", e);
+      })
     );
   }
   if (options.docsAiFiles) {
@@ -651,13 +687,17 @@ export async function setupAllUrlRedirects(
       if (doc.filename && doc.fileUrl) {
         const path = `/docs/ai/${doc.filename}`;
         tasks.push(
-          createOrUpdateUrlRedirect(admin, path, doc.fileUrl).catch((e) =>
-            console.error(`[llmo-files] redirect ${path} failed:`, e)
-          )
+          createOrUpdateUrlRedirect(admin, path, doc.fileUrl).then((result) => {
+            console.log(`[llmo-files] redirect ${path} result:`, result);
+            return result;
+          }).catch((e) => {
+            console.error(`[llmo-files] redirect ${path} failed:`, e);
+          })
         );
       }
     }
   }
 
   await Promise.all(tasks);
+  console.log("[llmo-files] setupAllUrlRedirects completed");
 }
