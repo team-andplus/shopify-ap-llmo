@@ -831,22 +831,8 @@ export default function AppIndex() {
                 fd.set("refinementNote", refinementNoteRef.current?.value ?? "");
                 fetcher.submit(fd, { method: "post" });
               }}
-              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: isRefining ? "wait" : "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: isRefining ? "wait" : "pointer", fontSize: "0.9375rem" }}
             >
-              {isRefining && (
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "1em",
-                    height: "1em",
-                    border: "2px solid rgba(0,0,0,0.2)",
-                    borderTopColor: "#202223",
-                    borderRadius: "50%",
-                    animation: "ap-llmo-spin 0.7s linear infinite",
-                  }}
-                  aria-hidden
-                />
-              )}
               {isRefining ? t.refining : t.refineButton}
             </button>
           </section>
@@ -862,22 +848,8 @@ export default function AppIndex() {
                 fd.set("intent", "save");
                 fetcher.submit(fd, { method: "post" });
               }}
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: isSaving ? "wait" : "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: isSaving ? "wait" : "pointer", fontSize: "0.9375rem" }}
             >
-              {isSaving && (
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "1em",
-                    height: "1em",
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "#fff",
-                    borderRadius: "50%",
-                    animation: "ap-llmo-spin 0.7s linear infinite",
-                  }}
-                  aria-hidden
-                />
-              )}
               {isSaving ? t.saveSettingsLoading : t.saveSettings}
             </button>
             <button
@@ -896,7 +868,7 @@ export default function AppIndex() {
             </button>
             <button
               type="button"
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
               onClick={() => {
                 if (!data.settings.openaiApiKeySet) {
                   alert(t.aiErrorNoKey);
@@ -910,20 +882,6 @@ export default function AppIndex() {
               }}
               disabled={isAiGenerating}
             >
-              {isAiGenerating && (
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "1em",
-                    height: "1em",
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "#fff",
-                    borderRadius: "50%",
-                    animation: "ap-llmo-spin 0.7s linear infinite",
-                  }}
-                  aria-hidden
-                />
-              )}
               {isAiGenerating ? t.aiGenerating : t.aiGenerate}
             </button>
             <button
