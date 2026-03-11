@@ -501,6 +501,8 @@ export default function AppIndex() {
   const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
   const loaderError = (data as { loaderError?: string | null }).loaderError;
 
+  const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining;
+
   return (
     <div
       className="app-home-grid"
@@ -517,6 +519,32 @@ export default function AppIndex() {
         @media (max-width: 900px) { .app-home-grid { grid-template-columns: 1fr !important; } }
         @keyframes ap-llmo-spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      {isAnyLoading && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+          }}
+        >
+          <div
+            style={{
+              width: "3rem",
+              height: "3rem",
+              border: "4px solid rgba(255, 255, 255, 0.3)",
+              borderTopColor: "#fff",
+              borderRadius: "50%",
+              animation: "ap-llmo-spin 0.7s linear infinite",
+            }}
+            aria-label="Loading"
+          />
+        </div>
+      )}
 
       <main style={{ minWidth: 0 }}>
       {loaderError && (
