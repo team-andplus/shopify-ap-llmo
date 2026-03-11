@@ -686,10 +686,11 @@ async function findUrlRedirectByPath(
       console.error("[llmo-files] findUrlRedirectByPath GraphQL errors:", JSON.stringify(json.errors));
       return null;
     }
-    // 完全一致するパスを探す
+    // 完全一致するパスを探す（大文字小文字を区別しない）
     const edges = json.data?.urlRedirects?.edges ?? [];
     console.log(`[llmo-files] findUrlRedirectByPath path=${path} found ${edges.length} results:`, edges.map(e => e.node.path));
-    const node = edges.find((e) => e.node.path === path)?.node;
+    const pathLower = path.toLowerCase();
+    const node = edges.find((e) => e.node.path.toLowerCase() === pathLower)?.node;
     if (node) {
       return { id: node.id, target: node.target };
     }
