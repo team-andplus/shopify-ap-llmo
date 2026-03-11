@@ -138,3 +138,64 @@ export async function generateLlmsTxtBodyRefinement(
 
   return { ok: true, body: content };
 }
+
+/**
+ * llms.full.txt の生データを AI で要約・整形する。
+ * 冗長な部分を削り、読みやすく整えるが、誇張や情報の追加はしない。
+ */
+export async function refineLlmsFullTxt(
+  rawText: string,
+  apiKey: string,
+  model: string = DEFAULT_MODEL
+): Promise<GenerateResult> {
+  const systemContent =
+    "You are an expert at editing llms.full.txt for LLM-oriented site documentation. Given raw store data, output a concise, well-organized summary. Maintain the heading structure and list format. Be fact-based: do NOT add information, exaggerate, or fabricate. Remove redundancy and improve readability. Output only the revised text, no commentary.";
+
+  const userContent = `以下は Shopify ストアから取得した生データです。これを llms.full.txt 用に整理・要約してください。見出し（##）とリスト（-）の構造を維持し、冗長な部分を削って読みやすくしてください。情報の追加や誇張は禁止です。
+
+---
+${rawText}
+---
+
+上記を整理・要約した llms.full.txt の全文のみを出力してください。`;
+
+  const reqBody = {
+    model,
+    messages: [
+      { role: "system" as const, content: systemContent },
+      { role: "user" as const, content: userContent },
+    ],
+    max_tokens: 4000,
+  };
+
+  const res = await fetch(CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(reqBody),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    let message = `OpenAI API error: ${res.status}`;
+    try {
+      const j = JSON.parse(err) as { error?: { message?: string } };
+      if (j.error?.message) message = j.error.message;
+    } catch {
+      if (err) message = err.slice(0, 200);
+    }
+    return { ok: false, error: message };
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const refined = data.choices?.[0]?.message?.content?.trim();
+  if (!refined) {
+    return { ok: false, error: "OpenAI returned no content." };
+  }
+
+  return { ok: true, body: refined };
+}

@@ -31,20 +31,23 @@ model Session {
 }
 
 model LlmoSettings {
-  id               String   @id @default(cuid())
-  shop             String   @unique
-  siteType         String?
-  title            String?
-  roleSummary      String?  @db.Text
-  sectionsOutline  String?  @db.Text
-  notesForAi       String?  @db.Text
-  llmsTxtBody      String?  @db.Text
-  llmsTxtFileUrl   String?  @db.Text
-  llmsTxtFileId    String?
-  docsAiFiles      String?  @db.Text
-  openaiApiKey     String?  @db.Text
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  shop                 String   @unique
+  siteType             String?
+  title                String?
+  roleSummary          String?  @db.Text
+  sectionsOutline      String?  @db.Text
+  notesForAi           String?  @db.Text
+  llmsTxtBody          String?  @db.Text
+  llmsTxtFileUrl       String?  @db.Text
+  llmsTxtFileId        String?
+  llmsFullTxtFileUrl   String?  @db.Text
+  llmsFullTxtFileId    String?
+  llmsFullTxtGeneratedAt DateTime?
+  docsAiFiles          String?  @db.Text
+  openaiApiKey         String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@map("LlmoSettings")
 }

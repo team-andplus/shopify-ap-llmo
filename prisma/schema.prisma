@@ -32,20 +32,23 @@ model Session {
 
 /// ストアごとの LLMO 設定。思想・プロトコルに則した項目（あんどぷらす llms.txt 参照）。
 model LlmoSettings {
-  id               String   @id @default(cuid())
-  shop             String   @unique
-  siteType         String?  // コーポレート / ECのみ / コーポレート兼EC
-  title            String?  // H1 用（サイト・組織名、サブタイトル可）
-  roleSummary      String?  // このファイルの役割・一次情報の所在（blockquote 用 1〜3 文）
-  sectionsOutline  String?  // セクション構成のメモ（## 1. 2. 3. のたたき台）
-  notesForAi       String?  // Notes for AI（優先・避けること・扱い方）
-  llmsTxtBody      String?  // AI が生成した llms.txt 本文（貼り付け用）
-  llmsTxtFileUrl   String?  // Files API で作成したファイルの CDN URL（head 参照用）
-  llmsTxtFileId    String?  // 更新用の file id（fileUpdate 用）
-  docsAiFiles      String?  // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
-  openaiApiKey     String?  // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                     String    @id @default(cuid())
+  shop                   String    @unique
+  siteType               String?   // コーポレート / ECのみ / コーポレート兼EC
+  title                  String?   // H1 用（サイト・組織名、サブタイトル可）
+  roleSummary            String?   // このファイルの役割・一次情報の所在（blockquote 用 1〜3 文）
+  sectionsOutline        String?   // セクション構成のメモ（## 1. 2. 3. のたたき台）
+  notesForAi             String?   // Notes for AI（優先・避けること・扱い方）
+  llmsTxtBody            String?   // AI が生成した llms.txt 本文（貼り付け用）
+  llmsTxtFileUrl         String?   // Files API で作成したファイルの CDN URL（head 参照用）
+  llmsTxtFileId          String?   // 更新用の file id（fileUpdate 用）
+  llmsFullTxtFileUrl     String?   // llms.full.txt の CDN URL
+  llmsFullTxtFileId      String?   // llms.full.txt の file id
+  llmsFullTxtGeneratedAt DateTime? // llms.full.txt の最終生成日時
+  docsAiFiles            String?   // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
+  openaiApiKey           String?   // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   @@map("LlmoSettings")
 }

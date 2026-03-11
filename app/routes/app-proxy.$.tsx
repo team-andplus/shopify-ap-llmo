@@ -33,6 +33,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     where: { shop },
     select: {
       llmsTxtFileUrl: true,
+      llmsFullTxtFileUrl: true,
       docsAiFiles: true,
     },
   });
@@ -41,9 +42,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect(settings.llmsTxtFileUrl, 302);
   }
 
-  if (path === "llms.full.txt") {
-    // 将来 llms.full.txt 用の URL を DB に持てばここでリダイレクト
-    return new Response("Not found", { status: 404 });
+  if (path === "llms.full.txt" && settings?.llmsFullTxtFileUrl) {
+    return redirect(settings.llmsFullTxtFileUrl, 302);
   }
 
   if (path === "docs/ai/README.md" && settings?.docsAiFiles) {

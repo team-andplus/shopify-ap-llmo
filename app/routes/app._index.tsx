@@ -8,10 +8,12 @@ import prisma from "../db.server";
 import { buildLlmsTxtPrompt } from "../lib/llmo-prompt.server";
 import {
   createOrUpdateLlmsTxtFile,
+  createOrUpdateLlmsFullTxtFile,
   createOrUpdateDocsAiFiles,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
-import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement } from "../lib/openai.server";
+import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement, refineLlmsFullTxt } from "../lib/openai.server";
+import { fetchStoreData, formatStoreDataAsText } from "../lib/llmo-full.server";
 import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 
@@ -43,6 +45,8 @@ const emptySettings = {
   notesForAi: "",
   llmsTxtBody: "",
   llmsTxtFileUrl: "",
+  llmsFullTxtFileUrl: "",
+  llmsFullTxtGeneratedAt: null as string | null,
   docsAiFiles: [] as DocsAiFileEntry[],
   openaiApiKeySet: false,
 };
@@ -66,6 +70,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             notesForAi: true,
             llmsTxtBody: true,
             llmsTxtFileUrl: true,
+            llmsFullTxtFileUrl: true,
+            llmsFullTxtGeneratedAt: true,
             docsAiFiles: true,
           },
         })
@@ -101,6 +107,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             notesForAi: settings.notesForAi ?? "",
             llmsTxtBody: settings.llmsTxtBody ?? "",
             llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
+            llmsFullTxtFileUrl: settings.llmsFullTxtFileUrl ?? "",
+            llmsFullTxtGeneratedAt: settings.llmsFullTxtGeneratedAt?.toISOString() ?? null,
             docsAiFiles,
             openaiApiKeySet,
           }
@@ -312,6 +320,79 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return Response.json({ ok: true });
   }
 
+  if (intent === "generateFullTxt") {
+    try {
+      const useAiRefinement = formData.get("useAiRefinement") === "true";
+      const storeData = await fetchStoreData(admin);
+      let fullTxtBody = formatStoreDataAsText(storeData);
+
+      if (useAiRefinement) {
+        const apiKey = await getDecryptedOpenAiKey(shop);
+        if (!apiKey) {
+          return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+        }
+        const refined = await refineLlmsFullTxt(fullTxtBody, apiKey);
+        if (!refined.ok) {
+          return Response.json({ error: refined.error ?? "OPENAI_ERROR" }, { status: 502 });
+        }
+        fullTxtBody = refined.body;
+      }
+
+      const existing = await prisma.llmoSettings.findUnique({
+        where: { shop },
+        select: { llmsFullTxtFileId: true },
+      });
+
+      const result = await createOrUpdateLlmsFullTxtFile(
+        admin,
+        fullTxtBody,
+        existing?.llmsFullTxtFileId ?? null
+      );
+
+      if (!result.ok) {
+        return Response.json({ ok: false, error: result.error }, { status: 400 });
+      }
+
+      try {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: {
+            shop,
+            llmsFullTxtFileUrl: result.url,
+            llmsFullTxtFileId: result.fileId,
+            llmsFullTxtGeneratedAt: new Date(),
+          },
+          update: {
+            llmsFullTxtFileUrl: result.url,
+            llmsFullTxtFileId: result.fileId,
+            llmsFullTxtGeneratedAt: new Date(),
+          },
+        });
+      } catch {
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO LlmoSettings (id, shop, llmsFullTxtFileUrl, llmsFullTxtFileId, llmsFullTxtGeneratedAt, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, NOW(), NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             llmsFullTxtFileUrl = VALUES(llmsFullTxtFileUrl),
+             llmsFullTxtFileId = VALUES(llmsFullTxtFileId),
+             llmsFullTxtGeneratedAt = NOW(),
+             updatedAt = NOW()`,
+          id,
+          shop,
+          result.url,
+          result.fileId
+        );
+      }
+
+      return Response.json({ ok: true, url: result.url });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] generateFullTxt error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
   if (intent === "saveFile") {
     try {
       const llmsTxtBody = (formData.get("llmsTxtBody") as string) ?? "";
@@ -435,8 +516,13 @@ export default function AppIndex() {
   const isPromptLoading = fetcher.state !== "idle" && lastIntent === "getPrompt";
   const isAiGenerating = fetcher.state !== "idle" && lastIntent === "generateLlmsTxt";
   const isRefining = fetcher.state !== "idle" && lastIntent === "refineLlmsTxt";
+  const isGeneratingFullTxt = fetcher.state !== "idle" && lastIntent === "generateFullTxt";
   const fileResult =
     lastIntent === "saveFile"
+      ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
+      : null;
+  const fullTxtResult =
+    lastIntent === "generateFullTxt"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
       : null;
   // 400 などで intent が消えてもエラー本文を表示（generateLlmsTxt は上記ブロックで表示するので除外）
@@ -477,6 +563,7 @@ export default function AppIndex() {
       ? data.settings.docsAiFiles
       : [emptyDocRow()];
   const [docsRows, setDocsRows] = useState<DocsAiFileEntry[]>(initialDocs);
+  const [useAiRefinementForFull, setUseAiRefinementForFull] = useState(false);
 
   const addDocRow = useCallback(() => {
     setDocsRows((prev) => (prev.length >= MAX_DOCS_AI_ROWS ? prev : [...prev, emptyDocRow()]));
@@ -501,7 +588,7 @@ export default function AppIndex() {
   const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
   const loaderError = (data as { loaderError?: string | null }).loaderError;
 
-  const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining;
+  const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining || isGeneratingFullTxt;
 
   return (
     <div
@@ -939,6 +1026,68 @@ export default function AppIndex() {
           {t.llmsTxtUrl}: <a href={data.settings.llmsTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsTxtFileUrl}</a>
         </p>
       )}
+
+      {/* llms.full.txt セクション */}
+      <section style={{ ...sectionStyle, marginTop: "2rem", borderLeft: "4px solid #008060" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.llmsFullTxtSectionTitle}</h2>
+        <p style={{ fontSize: "0.875rem", color: "#6d7175", marginBottom: "1rem", lineHeight: 1.6 }}>
+          {t.llmsFullTxtDesc}
+        </p>
+
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9375rem", marginBottom: "1rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={useAiRefinementForFull}
+            onChange={(e) => setUseAiRefinementForFull(e.target.checked)}
+            disabled={!data.settings.openaiApiKeySet}
+            style={{ width: "1rem", height: "1rem" }}
+          />
+          {t.useAiRefinement}
+          {!data.settings.openaiApiKeySet && (
+            <span style={{ fontSize: "0.75rem", color: "#6d7175" }}>（API Key 未設定）</span>
+          )}
+        </label>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (useAiRefinementForFull && !data.settings.openaiApiKeySet) {
+              alert(t.aiErrorNoKey);
+              return;
+            }
+            const fd = new FormData();
+            fd.set("intent", "generateFullTxt");
+            fd.set("useAiRefinement", useAiRefinementForFull ? "true" : "false");
+            fetcher.submit(fd, { method: "post" });
+          }}
+          disabled={isGeneratingFullTxt}
+          style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isGeneratingFullTxt ? "wait" : "pointer", fontSize: "0.9375rem" }}
+        >
+          {isGeneratingFullTxt ? t.generatingFullTxt : t.generateFullTxt}
+        </button>
+
+        {fullTxtResult?.ok && (
+          <p style={{ marginTop: "0.75rem", color: "#008060", fontSize: "0.875rem" }}>
+            ✓ llms.full.txt を生成しました
+          </p>
+        )}
+        {fullTxtResult && !fullTxtResult.ok && fullTxtResult.error && (
+          <p style={{ marginTop: "0.75rem", color: "#b91c1c", fontSize: "0.875rem" }}>
+            {t.error}: {fullTxtResult.error}
+          </p>
+        )}
+
+        {data.settings.llmsFullTxtFileUrl && (
+          <p style={{ marginTop: "0.75rem", fontSize: "0.875rem", color: "#6d7175" }}>
+            {t.llmsFullTxtUrl}: <a href={data.settings.llmsFullTxtFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.llmsFullTxtFileUrl}</a>
+          </p>
+        )}
+        {data.settings.llmsFullTxtGeneratedAt && (
+          <p style={{ marginTop: "0.25rem", fontSize: "0.8125rem", color: "#6d7175" }}>
+            {t.llmsFullTxtGeneratedAt}: {new Date(data.settings.llmsFullTxtGeneratedAt).toLocaleString()}
+          </p>
+        )}
+      </section>
       </main>
 
       <aside style={{ position: "sticky", top: "1rem" }}>

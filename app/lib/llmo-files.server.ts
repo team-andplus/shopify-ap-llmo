@@ -6,6 +6,7 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 
 const LLMS_TXT_FILENAME = "llms.txt";
+const LLMS_FULL_TXT_FILENAME = "llms.full.txt";
 const METAFIELD_NAMESPACE = "llmo";
 const METAFIELD_KEY_LLMS_TXT_URL = "llms_txt_url";
 
@@ -62,6 +63,56 @@ export async function createOrUpdateLlmsTxtFile(
     // ステージド先ストレージが resourceUrl を用意するまで短く待つ（POST 直後に fileCreate すると files が空になることがある）
     await new Promise((r) => setTimeout(r, 2500));
 
+    const created = await fileCreate(admin, staged.value.resourceUrl);
+    if (!created.ok) return { ok: false, error: created.error };
+    return { ok: true, url: created.url, fileId: created.id };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * llms.full.txt を Shopify Files にアップロードする。既存の fileId があれば更新。
+ */
+export async function createOrUpdateLlmsFullTxtFile(
+  admin: AdminApiContext,
+  body: string,
+  existingFileId: string | null
+): Promise<CreateLlmsTxtFileResult> {
+  const content = body.trim();
+  if (!content) {
+    return { ok: false, error: "本文が空です。" };
+  }
+
+  const buffer = Buffer.from(content, "utf-8");
+  const fileSize = buffer.length;
+
+  try {
+    const staged = await getStagedUploadTargetForFile(
+      admin,
+      LLMS_FULL_TXT_FILENAME,
+      "text/plain",
+      fileSize
+    );
+    if (!staged.ok) return { ok: false, error: staged.error };
+
+    const uploaded = await uploadToStagedUrl(
+      staged.value.url,
+      staged.value.parameters,
+      buffer,
+      "text/plain; charset=utf-8",
+      LLMS_FULL_TXT_FILENAME
+    );
+    if (!uploaded.ok) return { ok: false, error: uploaded.error };
+
+    if (existingFileId) {
+      const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
+      if (!updated.ok) return { ok: false, error: updated.error };
+      return { ok: true, url: updated.url, fileId: updated.id };
+    }
+
+    await new Promise((r) => setTimeout(r, 2500));
     const created = await fileCreate(admin, staged.value.resourceUrl);
     if (!created.ok) return { ok: false, error: created.error };
     return { ok: true, url: created.url, fileId: created.id };
