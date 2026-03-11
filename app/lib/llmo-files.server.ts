@@ -696,6 +696,7 @@ async function findUrlRedirectByPath(
 
 /**
  * llms.txt, llms.full.txt, .ai-context, docs/ai/*.md のリダイレクトをまとめて設定する。
+ * リダイレクト先は App Proxy 経由（/apps/llmo/...）にして、ログ記録を可能にする。
  */
 export async function setupAllUrlRedirects(
   admin: AdminApiContext,
@@ -715,9 +716,10 @@ export async function setupAllUrlRedirects(
 
   const tasks: Promise<unknown>[] = [];
 
+  // リダイレクト先は App Proxy 経由（ログ記録のため）
   if (options.llmsTxtUrl) {
     tasks.push(
-      createOrUpdateUrlRedirect(admin, "/llms.txt", options.llmsTxtUrl).then((result) => {
+      createOrUpdateUrlRedirect(admin, "/llms.txt", "/apps/llmo/llms.txt").then((result) => {
         console.log("[llmo-files] redirect /llms.txt result:", result);
         return result;
       }).catch((e) => {
@@ -727,7 +729,7 @@ export async function setupAllUrlRedirects(
   }
   if (options.llmsFullTxtUrl) {
     tasks.push(
-      createOrUpdateUrlRedirect(admin, "/llms.full.txt", options.llmsFullTxtUrl).then((result) => {
+      createOrUpdateUrlRedirect(admin, "/llms.full.txt", "/apps/llmo/llms.full.txt").then((result) => {
         console.log("[llmo-files] redirect /llms.full.txt result:", result);
         return result;
       }).catch((e) => {
@@ -737,7 +739,7 @@ export async function setupAllUrlRedirects(
   }
   if (options.aiContextUrl) {
     tasks.push(
-      createOrUpdateUrlRedirect(admin, "/.ai-context", options.aiContextUrl).then((result) => {
+      createOrUpdateUrlRedirect(admin, "/.ai-context", "/apps/llmo/.ai-context").then((result) => {
         console.log("[llmo-files] redirect /.ai-context result:", result);
         return result;
       }).catch((e) => {
@@ -748,13 +750,14 @@ export async function setupAllUrlRedirects(
   if (options.docsAiFiles) {
     for (const doc of options.docsAiFiles) {
       if (doc.filename && doc.fileUrl) {
-        const path = `/docs/ai/${doc.filename}`;
+        const fromPath = `/docs/ai/${doc.filename}`;
+        const toPath = `/apps/llmo/docs/ai/${doc.filename}`;
         tasks.push(
-          createOrUpdateUrlRedirect(admin, path, doc.fileUrl).then((result) => {
-            console.log(`[llmo-files] redirect ${path} result:`, result);
+          createOrUpdateUrlRedirect(admin, fromPath, toPath).then((result) => {
+            console.log(`[llmo-files] redirect ${fromPath} result:`, result);
             return result;
           }).catch((e) => {
-            console.error(`[llmo-files] redirect ${path} failed:`, e);
+            console.error(`[llmo-files] redirect ${fromPath} failed:`, e);
           })
         );
       }
