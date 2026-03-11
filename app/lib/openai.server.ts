@@ -199,3 +199,155 @@ ${rawText}
 
   return { ok: true, body: refined };
 }
+
+/**
+ * ストアデータと notesForAi から .ai-context を AI で生成する。
+ * AI がストアを解釈する際のガイドライン・制約を定義するファイル。
+ */
+export async function generateAiContextBody(
+  storeInfo: {
+    shopName: string;
+    shopDescription: string;
+    siteType: string | null;
+    productCount: number;
+    collectionCount: number;
+    vendorCount: number;
+    hasShippingPolicy: boolean;
+    hasRefundPolicy: boolean;
+  },
+  notesForAi: string | null,
+  apiKey: string,
+  model: string = DEFAULT_MODEL
+): Promise<GenerateResult> {
+  const systemContent = `You are an expert at writing .ai-context files that define interpretation rules and constraints for AI systems interacting with e-commerce stores.
+
+Your task is to create a .ai-context file that:
+1. Clearly states the store's identity and what it sells
+2. Defines interpretation rules (no exaggeration, be factual)
+3. Provides tone guidance (avoid hype, prefer factual explanations)
+4. Explains commerce data rules (prices change, check product pages)
+5. Defines fulfillment & policy context
+6. Sets source priority (llms.full.txt > llms.txt > product pages > marketing)
+7. Clarifies naming & identity
+
+If the store owner has provided custom guidelines (Notes for AI), include them prominently in a "Custom Store Guidelines" section.
+
+Output ONLY the .ai-context file content in Markdown format. No commentary.`;
+
+  const userContent = `Please generate a .ai-context file for this store:
+
+Store Name: ${storeInfo.shopName || "Unknown Store"}
+Description: ${storeInfo.shopDescription || "No description"}
+Site Type: ${storeInfo.siteType || "E-commerce store"}
+Product Count: ${storeInfo.productCount}
+Collection Count: ${storeInfo.collectionCount}
+Vendor/Brand Count: ${storeInfo.vendorCount}
+Has Shipping Policy: ${storeInfo.hasShippingPolicy ? "Yes" : "No"}
+Has Refund Policy: ${storeInfo.hasRefundPolicy ? "Yes" : "No"}
+
+${notesForAi ? `Store Owner's Custom Guidelines (Notes for AI):\n${notesForAi}` : "No custom guidelines provided."}
+
+Generate the .ai-context file in Markdown format.`;
+
+  const reqBody = {
+    model,
+    messages: [
+      { role: "system" as const, content: systemContent },
+      { role: "user" as const, content: userContent },
+    ],
+    max_tokens: 3000,
+  };
+
+  const res = await fetch(CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(reqBody),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    let message = `OpenAI API error: ${res.status}`;
+    try {
+      const j = JSON.parse(err) as { error?: { message?: string } };
+      if (j.error?.message) message = j.error.message;
+    } catch {
+      if (err) message = err.slice(0, 200);
+    }
+    return { ok: false, error: message };
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) {
+    return { ok: false, error: "OpenAI returned no content." };
+  }
+
+  return { ok: true, body: content };
+}
+
+/**
+ * 現在の .ai-context 本文と「修正したい点」から、対話的に再生成する。
+ */
+export async function refineAiContextBody(
+  currentBody: string,
+  refinementNote: string,
+  apiKey: string,
+  model: string = DEFAULT_MODEL
+): Promise<GenerateResult> {
+  const systemContent =
+    "You are an expert at editing .ai-context files that define interpretation rules for AI systems. Given the current content and the user's refinement request, output only the revised full text of the file. No commentary or explanation. Maintain the purpose and structure of the .ai-context file.";
+
+  const userContent = `【現在の .ai-context 本文】
+
+${currentBody}
+
+【ユーザーからの修正希望】
+${refinementNote}
+
+上記の希望に沿って、本文を修正した全文のみを出力してください。`;
+
+  const reqBody = {
+    model,
+    messages: [
+      { role: "system" as const, content: systemContent },
+      { role: "user" as const, content: userContent },
+    ],
+    max_tokens: 3000,
+  };
+
+  const res = await fetch(CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(reqBody),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    let message = `OpenAI API error: ${res.status}`;
+    try {
+      const j = JSON.parse(err) as { error?: { message?: string } };
+      if (j.error?.message) message = j.error.message;
+    } catch {
+      if (err) message = err.slice(0, 200);
+    }
+    return { ok: false, error: message };
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) {
+    return { ok: false, error: "OpenAI returned no content." };
+  }
+
+  return { ok: true, body: content };
+}

@@ -14,7 +14,7 @@ import {
   setupAllUrlRedirects,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
-import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement, refineLlmsFullTxt } from "../lib/openai.server";
+import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement, refineLlmsFullTxt, generateAiContextBody, refineAiContextBody } from "../lib/openai.server";
 import { fetchStoreData, formatStoreDataAsText } from "../lib/llmo-full.server";
 import { extractAiContextData, formatAiContext } from "../lib/llmo-ai-context.server";
 import { encrypt } from "../lib/encrypt.server";
@@ -50,6 +50,7 @@ const emptySettings = {
   llmsTxtFileUrl: "",
   llmsFullTxtFileUrl: "",
   llmsFullTxtGeneratedAt: null as string | null,
+  aiContextBody: "",
   aiContextFileUrl: "",
   aiContextGeneratedAt: null as string | null,
   docsAiFiles: [] as DocsAiFileEntry[],
@@ -77,6 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtFileUrl: true,
             llmsFullTxtFileUrl: true,
             llmsFullTxtGeneratedAt: true,
+            aiContextBody: true,
             aiContextFileUrl: true,
             aiContextGeneratedAt: true,
             docsAiFiles: true,
@@ -116,6 +118,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
             llmsFullTxtFileUrl: settings.llmsFullTxtFileUrl ?? "",
             llmsFullTxtGeneratedAt: settings.llmsFullTxtGeneratedAt?.toISOString() ?? null,
+            aiContextBody: settings.aiContextBody ?? "",
             aiContextFileUrl: settings.aiContextFileUrl ?? "",
             aiContextGeneratedAt: settings.aiContextGeneratedAt?.toISOString() ?? null,
             docsAiFiles,
@@ -360,10 +363,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const existing = await prisma.llmoSettings.findUnique({
         where: { shop },
-        select: { llmsFullTxtFileId: true, aiContextFileId: true, siteType: true, notesForAi: true },
+        select: { llmsFullTxtFileId: true },
       });
 
-      // llms.full.txt をアップロード
       const fullTxtResult = await createOrUpdateLlmsFullTxtFile(
         admin,
         fullTxtBody,
@@ -374,20 +376,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return Response.json({ ok: false, error: fullTxtResult.error }, { status: 400 });
       }
 
-      // .ai-context を生成してアップロード（必須）
-      // ストアオーナーが設定した notesForAi を反映
-      const aiContextData = extractAiContextData(storeData, existing?.siteType ?? null, existing?.notesForAi ?? null);
-      const aiContextBody = formatAiContext(aiContextData);
-      const aiContextResult = await createOrUpdateAiContextFile(
-        admin,
-        aiContextBody,
-        existing?.aiContextFileId ?? null
-      );
-
-      if (!aiContextResult.ok) {
-        console.error("[ap-llmo] .ai-context upload failed:", aiContextResult.error);
-      }
-
       try {
         await prisma.llmoSettings.upsert({
           where: { shop },
@@ -396,54 +384,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             llmsFullTxtFileUrl: fullTxtResult.url,
             llmsFullTxtFileId: fullTxtResult.fileId,
             llmsFullTxtGeneratedAt: new Date(),
-            aiContextFileUrl: aiContextResult.ok ? aiContextResult.url : null,
-            aiContextFileId: aiContextResult.ok ? aiContextResult.fileId : null,
-            aiContextGeneratedAt: aiContextResult.ok ? new Date() : null,
           },
           update: {
             llmsFullTxtFileUrl: fullTxtResult.url,
             llmsFullTxtFileId: fullTxtResult.fileId,
             llmsFullTxtGeneratedAt: new Date(),
-            aiContextFileUrl: aiContextResult.ok ? aiContextResult.url : undefined,
-            aiContextFileId: aiContextResult.ok ? aiContextResult.fileId : undefined,
-            aiContextGeneratedAt: aiContextResult.ok ? new Date() : undefined,
           },
         });
       } catch {
         const id = randomUUID();
         await prisma.$executeRawUnsafe(
-          `INSERT INTO LlmoSettings (id, shop, llmsFullTxtFileUrl, llmsFullTxtFileId, llmsFullTxtGeneratedAt, aiContextFileUrl, aiContextFileId, aiContextGeneratedAt, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, NOW(), ?, ?, NOW(), NOW(), NOW())
+          `INSERT INTO LlmoSettings (id, shop, llmsFullTxtFileUrl, llmsFullTxtFileId, llmsFullTxtGeneratedAt, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, NOW(), NOW(), NOW())
            ON DUPLICATE KEY UPDATE
              llmsFullTxtFileUrl = VALUES(llmsFullTxtFileUrl),
              llmsFullTxtFileId = VALUES(llmsFullTxtFileId),
              llmsFullTxtGeneratedAt = NOW(),
-             aiContextFileUrl = VALUES(aiContextFileUrl),
-             aiContextFileId = VALUES(aiContextFileId),
-             aiContextGeneratedAt = NOW(),
              updatedAt = NOW()`,
           id,
           shop,
           fullTxtResult.url,
-          fullTxtResult.fileId,
-          aiContextResult.ok ? aiContextResult.url : null,
-          aiContextResult.ok ? aiContextResult.fileId : null
+          fullTxtResult.fileId
         );
       }
 
-      // URL リダイレクトを設定（/llms.full.txt, /.ai-context → CDN URL）
-      setupAllUrlRedirects(admin, {
-        llmsFullTxtUrl: fullTxtResult.url,
-        aiContextUrl: aiContextResult.ok ? aiContextResult.url : null,
-      }).catch((e) =>
+      setupAllUrlRedirects(admin, { llmsFullTxtUrl: fullTxtResult.url }).catch((e) =>
         console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
       );
 
-      return Response.json({
-        ok: true,
-        url: fullTxtResult.url,
-        aiContextUrl: aiContextResult.ok ? aiContextResult.url : null,
-      });
+      return Response.json({ ok: true, url: fullTxtResult.url });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("[ap-llmo] generateFullTxt error:", err);
@@ -524,6 +493,186 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  // .ai-context を AI で生成する
+  if (intent === "generateAiContext") {
+    try {
+      const apiKey = await getDecryptedOpenAiKey(shop);
+      if (!apiKey) {
+        return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+      }
+
+      const storeData = await fetchStoreData(admin);
+      const settings = await prisma.llmoSettings.findUnique({
+        where: { shop },
+        select: { siteType: true, notesForAi: true },
+      });
+
+      const result = await generateAiContextBody(
+        {
+          shopName: storeData.shopName,
+          shopDescription: storeData.shopDescription,
+          siteType: settings?.siteType ?? null,
+          productCount: storeData.collections.reduce((acc, c) => acc + c.products.length, 0),
+          collectionCount: storeData.collections.length,
+          vendorCount: new Set(storeData.collections.flatMap((c) => c.products.map((p) => p.vendor).filter(Boolean))).size,
+          hasShippingPolicy: !!storeData.shippingPolicy,
+          hasRefundPolicy: !!storeData.refundPolicy,
+        },
+        settings?.notesForAi ?? null,
+        apiKey
+      );
+
+      if (!result.ok) {
+        return Response.json({ error: result.error }, { status: 502 });
+      }
+
+      try {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: { shop, aiContextBody: result.body },
+          update: { aiContextBody: result.body },
+        });
+      } catch {
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO LlmoSettings (id, shop, aiContextBody, createdAt, updatedAt)
+           VALUES (?, ?, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE aiContextBody = VALUES(aiContextBody), updatedAt = NOW()`,
+          id,
+          shop,
+          result.body
+        );
+      }
+
+      return Response.json({ ok: true, body: result.body });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] generateAiContext error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
+  // .ai-context を修正して再生成する
+  if (intent === "refineAiContext") {
+    try {
+      const currentBody = (formData.get("aiContextBody") as string) ?? "";
+      const refinementNote = (formData.get("refinementNote") as string) ?? "";
+
+      if (!currentBody.trim()) {
+        return Response.json({ error: "BODY_EMPTY" }, { status: 400 });
+      }
+      if (!refinementNote.trim()) {
+        return Response.json({ error: "NOTE_EMPTY" }, { status: 400 });
+      }
+
+      const apiKey = await getDecryptedOpenAiKey(shop);
+      if (!apiKey) {
+        return Response.json({ error: "API_KEY_REQUIRED" }, { status: 400 });
+      }
+
+      const result = await refineAiContextBody(currentBody, refinementNote, apiKey);
+
+      if (!result.ok) {
+        return Response.json({ error: result.error }, { status: 502 });
+      }
+
+      try {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: { shop, aiContextBody: result.body },
+          update: { aiContextBody: result.body },
+        });
+      } catch {
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO LlmoSettings (id, shop, aiContextBody, createdAt, updatedAt)
+           VALUES (?, ?, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE aiContextBody = VALUES(aiContextBody), updatedAt = NOW()`,
+          id,
+          shop,
+          result.body
+        );
+      }
+
+      return Response.json({ ok: true, body: result.body });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] refineAiContext error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
+  // .ai-context をファイルとして保存する
+  if (intent === "saveAiContext") {
+    try {
+      const aiContextBody = (formData.get("aiContextBody") as string) ?? "";
+      if (!aiContextBody.trim()) {
+        return Response.json({ error: "BODY_EMPTY" }, { status: 400 });
+      }
+
+      const existing = await prisma.llmoSettings.findUnique({
+        where: { shop },
+        select: { aiContextFileId: true },
+      });
+
+      const result = await createOrUpdateAiContextFile(
+        admin,
+        aiContextBody,
+        existing?.aiContextFileId ?? null
+      );
+
+      if (!result.ok) {
+        return Response.json({ ok: false, error: result.error }, { status: 400 });
+      }
+
+      try {
+        await prisma.llmoSettings.upsert({
+          where: { shop },
+          create: {
+            shop,
+            aiContextBody,
+            aiContextFileUrl: result.url,
+            aiContextFileId: result.fileId,
+            aiContextGeneratedAt: new Date(),
+          },
+          update: {
+            aiContextBody,
+            aiContextFileUrl: result.url,
+            aiContextFileId: result.fileId,
+            aiContextGeneratedAt: new Date(),
+          },
+        });
+      } catch {
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO LlmoSettings (id, shop, aiContextBody, aiContextFileUrl, aiContextFileId, aiContextGeneratedAt, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             aiContextBody = VALUES(aiContextBody),
+             aiContextFileUrl = VALUES(aiContextFileUrl),
+             aiContextFileId = VALUES(aiContextFileId),
+             aiContextGeneratedAt = NOW(),
+             updatedAt = NOW()`,
+          id,
+          shop,
+          aiContextBody,
+          result.url,
+          result.fileId
+        );
+      }
+
+      setupAllUrlRedirects(admin, { aiContextUrl: result.url }).catch((e) =>
+        console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
+      );
+
+      return Response.json({ ok: true, url: result.url });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] saveAiContext error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 };
 
@@ -580,12 +729,19 @@ export default function AppIndex() {
   const isAiGenerating = fetcher.state !== "idle" && lastIntent === "generateLlmsTxt";
   const isRefining = fetcher.state !== "idle" && lastIntent === "refineLlmsTxt";
   const isGeneratingFullTxt = fetcher.state !== "idle" && lastIntent === "generateFullTxt";
+  const isGeneratingAiContext = fetcher.state !== "idle" && lastIntent === "generateAiContext";
+  const isRefiningAiContext = fetcher.state !== "idle" && lastIntent === "refineAiContext";
+  const isSavingAiContext = fetcher.state !== "idle" && lastIntent === "saveAiContext";
   const fileResult =
     lastIntent === "saveFile"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
       : null;
   const fullTxtResult =
     lastIntent === "generateFullTxt"
+      ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
+      : null;
+  const aiContextSaveResult =
+    lastIntent === "saveAiContext"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
       : null;
   // 400 などで intent が消えてもエラー本文を表示（generateLlmsTxt は上記ブロックで表示するので除外）
@@ -621,12 +777,36 @@ export default function AppIndex() {
     }
   }, [fetcher.state, fetcher.formData, fetcher.data?.error, t.aiErrorNoKey]);
 
+  // .ai-context 生成・再生成時に body を更新
+  useEffect(() => {
+    const intent = (fetcher.formData as FormData | undefined)?.get("intent");
+    if (
+      fetcher.state === "idle" &&
+      (intent === "generateAiContext" || intent === "refineAiContext") &&
+      fetcher.data?.body
+    ) {
+      setAiContextBody(fetcher.data.body);
+      if (intent === "refineAiContext") {
+        setAiContextRefinementNote("");
+      }
+    }
+    if (
+      fetcher.state === "idle" &&
+      (intent === "generateAiContext" || intent === "refineAiContext") &&
+      fetcher.data?.error === "API_KEY_REQUIRED"
+    ) {
+      alert(t.aiErrorNoKey);
+    }
+  }, [fetcher.state, fetcher.formData, fetcher.data?.body, fetcher.data?.error, t.aiErrorNoKey]);
+
   const initialDocs =
     data.settings.docsAiFiles?.length > 0
       ? data.settings.docsAiFiles
       : [emptyDocRow()];
   const [docsRows, setDocsRows] = useState<DocsAiFileEntry[]>(initialDocs);
   const [useAiRefinementForFull, setUseAiRefinementForFull] = useState(false);
+  const [aiContextBody, setAiContextBody] = useState(data.settings.aiContextBody ?? "");
+  const [aiContextRefinementNote, setAiContextRefinementNote] = useState("");
 
   const addDocRow = useCallback(() => {
     setDocsRows((prev) => (prev.length >= MAX_DOCS_AI_ROWS ? prev : [...prev, emptyDocRow()]));
@@ -651,7 +831,7 @@ export default function AppIndex() {
   const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
   const loaderError = (data as { loaderError?: string | null }).loaderError;
 
-  const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining || isGeneratingFullTxt;
+  const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining || isGeneratingFullTxt || isGeneratingAiContext || isRefiningAiContext || isSavingAiContext;
 
   return (
     <div
@@ -1150,30 +1330,116 @@ export default function AppIndex() {
             {t.llmsFullTxtGeneratedAt}: {new Date(data.settings.llmsFullTxtGeneratedAt).toLocaleString()}
           </p>
         )}
+      </section>
 
-        {/* .ai-context（llms.full.txt と同時に生成） */}
-        <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e4e5e7" }}>
-          <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiContextSectionTitle}</h3>
-          <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
-            {t.aiContextDesc}
-          </p>
-          {data.settings.aiContextFileUrl ? (
-            <>
-              <p style={{ fontSize: "0.875rem", color: "#6d7175" }}>
-                {t.aiContextUrl}: <a href={data.settings.aiContextFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.aiContextFileUrl}</a>
-              </p>
-              {data.settings.aiContextGeneratedAt && (
-                <p style={{ marginTop: "0.25rem", fontSize: "0.8125rem", color: "#6d7175" }}>
-                  {t.aiContextGeneratedAt}: {new Date(data.settings.aiContextGeneratedAt).toLocaleString()}
-                </p>
-              )}
-            </>
-          ) : (
-            <p style={{ fontSize: "0.8125rem", color: "#6d7175" }}>
-              {t.aiContextNotSet}
-            </p>
-          )}
+      {/* .ai-context セクション（llms.txt と同様の独立セクション） */}
+      <section style={sectionStyle}>
+        <h2 style={{ fontSize: "1.0625rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.aiContextSectionTitle}</h2>
+        <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "1rem" }}>{t.aiContextDesc}</p>
+
+        <label style={labelStyle}>{t.aiContextBodyLabel}</label>
+        <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.5rem" }}>{t.aiContextBodyHint}</p>
+        <textarea
+          name="aiContextBody"
+          value={aiContextBody}
+          onChange={(e) => setAiContextBody(e.target.value)}
+          rows={12}
+          style={inputStyle}
+          placeholder={t.aiContextBodyPlaceholder}
+        />
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!data.settings.openaiApiKeySet) {
+                alert(t.aiErrorNoKey);
+                return;
+              }
+              fetcher.submit({ intent: "generateAiContext" }, { method: "post" });
+            }}
+            style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isGeneratingAiContext ? "wait" : "pointer", fontSize: "0.9375rem", minWidth: 140 }}
+            disabled={isAnyLoading}
+          >
+            {isGeneratingAiContext ? t.generatingAiContext : t.generateAiContext}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!aiContextBody.trim()) {
+                alert(t.aiContextBodyEmpty);
+                return;
+              }
+              fetcher.submit({ intent: "saveAiContext", aiContextBody }, { method: "post" });
+            }}
+            style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", color: "#333", cursor: isSavingAiContext ? "wait" : "pointer", fontSize: "0.9375rem", minWidth: 140 }}
+            disabled={isAnyLoading || !aiContextBody.trim()}
+          >
+            {isSavingAiContext ? t.saveSettingsLoading : t.saveAiContext}
+          </button>
         </div>
+
+        {/* 再生成（修正点を指定） */}
+        {aiContextBody.trim() && (
+          <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e4e5e7" }}>
+            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.refinementSectionTitle}</h3>
+            <label style={labelStyle}>{t.refinementNoteLabel}</label>
+            <textarea
+              value={aiContextRefinementNote}
+              onChange={(e) => setAiContextRefinementNote(e.target.value)}
+              rows={3}
+              style={inputStyle}
+              placeholder={t.refinementNotePlaceholder}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!aiContextBody.trim()) {
+                  alert(t.aiContextBodyEmpty);
+                  return;
+                }
+                if (!aiContextRefinementNote.trim()) {
+                  alert(t.refineErrorNoteEmpty);
+                  return;
+                }
+                if (!data.settings.openaiApiKeySet) {
+                  alert(t.aiErrorNoKey);
+                  return;
+                }
+                fetcher.submit(
+                  { intent: "refineAiContext", aiContextBody, refinementNote: aiContextRefinementNote },
+                  { method: "post" }
+                );
+              }}
+              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isRefiningAiContext ? "wait" : "pointer", fontSize: "0.9375rem", marginTop: "0.5rem" }}
+              disabled={isAnyLoading}
+            >
+              {isRefiningAiContext ? t.refining : t.refineAiContext}
+            </button>
+          </div>
+        )}
+
+        {aiContextSaveResult?.ok && (
+          <p style={{ marginTop: "0.75rem", color: "#008060", fontSize: "0.875rem" }}>
+            ✓ {t.aiContextSaved}
+          </p>
+        )}
+        {aiContextSaveResult && !aiContextSaveResult.ok && aiContextSaveResult.error && (
+          <p style={{ marginTop: "0.75rem", color: "#b91c1c", fontSize: "0.875rem" }}>
+            {t.error}: {aiContextSaveResult.error}
+          </p>
+        )}
+
+        {data.settings.aiContextFileUrl && (
+          <p style={{ marginTop: "0.75rem", fontSize: "0.875rem", color: "#6d7175" }}>
+            {t.aiContextUrl}: <a href={data.settings.aiContextFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.aiContextFileUrl}</a>
+          </p>
+        )}
+        {data.settings.aiContextGeneratedAt && (
+          <p style={{ marginTop: "0.25rem", fontSize: "0.8125rem", color: "#6d7175" }}>
+            {t.aiContextGeneratedAt}: {new Date(data.settings.aiContextGeneratedAt).toLocaleString()}
+          </p>
+        )}
       </section>
       </main>
 

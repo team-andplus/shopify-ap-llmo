@@ -45,6 +45,7 @@ model LlmoSettings {
   llmsFullTxtFileUrl     String?   // llms.full.txt の CDN URL
   llmsFullTxtFileId      String?   // llms.full.txt の file id
   llmsFullTxtGeneratedAt DateTime? // llms.full.txt の最終生成日時
+  aiContextBody          String?   // .ai-context 本文（AI 生成・編集用）
   aiContextFileUrl       String?   // .ai-context の CDN URL
   aiContextFileId        String?   // .ai-context の file id
   aiContextGeneratedAt   DateTime? // .ai-context の最終生成日時
