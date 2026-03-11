@@ -1,180 +1,194 @@
 # shopify-ap-llmo（LLMO アプリ）
 
-**このディレクトリは「AI向け文書（llms.txt / docs/ai）の head 追加アプリ」用です。**  
-構造化データアプリ（`shopify-schemabridge`）とは別アプリです。
+**AI/LLM 向け文書（llms.txt / .ai-context / docs/ai）を管理し、ストアの `<head>` にリンクを追加する Shopify アプリ**
 
 ---
 
 ## 概要
 
-- **目的**: ストアの `<head>` に、LLM・エージェント向けの文書へのパスを追加する。
-- **思想**: 中身はユーザー定義。自動生成に頼りきらず、考え方と壁打ちプロンプトを示して、好きな AI で作成してもらう（「正しい LLMO 講座」的なスタンス）。
-- **配布**: 単独アプリ。無料で配布し、自律探索が当たり前になってきたら有料化を検討。導入支援は 10〜20 万で提供。
+- **目的**: ストアの `<head>` に、LLM・AI エージェント向けの文書へのリンクを追加する
+- **思想**: 「嘘をつかせない」— 事実・証拠を優先し、誇張や捏造を避けることで、AI がストア情報を適切に解釈・生成できるようにする
+- **配布**: 無料配布。導入支援は別途提供
 
 ---
 
-## 想定する head 追加先（4 種）
+## 機能一覧
 
-**役割の分担**: **llms.txt** = 思想・プロトコル。**docs/ai** = 補足情報。**llms.full.txt** = サイト情報全部。
+### 1. AI 向け文書の生成・管理
 
-| ファイル／パス | 役割 | 作成 |
-|----------------|------|------|
-| **llms.txt** | 思想・プロトコル。AI にどう解釈してほしいか、優先順位・禁止事項・一次情報の所在。 | **案B**: アプリが Files API でひな形を作成 → ユーザーは「コンテンツ→ファイル」で本文を編集 |
-| **llms.full.txt** | サイト情報全部。コレクションごとの商品・FAQ・ロケーション・ブランド・配送支払いなど。 | アプリが**毎日自動生成**（docs/機能案_llms-full-txt_毎日自動生成.md） |
-| **docs/ai/README.md** | 補足。llms.txt / llms.full.txt の索引・各 doc の案内。 | ユーザー定義 |
-| **docs/ai/〇〇.md** | 補足。思想の深掘り・壁打ちプロンプトなど。 | ユーザー定義 |
+| ファイル | 役割 | 作成方法 |
+|----------|------|----------|
+| **llms.txt** | 思想・プロトコル。AI にどう解釈してほしいか、優先順位・禁止事項・一次情報の所在 | AI 生成 + 対話的編集 |
+| **llms.full.txt** | サイト情報全部。コレクション・商品・ロケーション・ポリシー等を自動収集 | 自動生成（AI 整形オプション有り） |
+| **.ai-context** | AI 解釈ガイドライン。AI がストアを解釈する際のルール・制約を定義 | AI 生成 + 対話的編集 |
+| **docs/ai/README.md** | 補足文書。AI 向けドキュメントの索引 | ユーザー定義（Markdown） |
+| **sitemap-ai.xml** | AI 向けサイトマップ。上記文書の URL を XML 形式で提供 | 自動生成（App Proxy 経由） |
 
-**llms.txt の設置方針**: **案B** を採用。アプリが「llms.txt を用意」ボタンで Shopify Files にひな形の .txt を 1 個作成し、その CDN URL をメタフィールドに保存。Theme Extension はその URL を `<link>` に使う。詳細は **docs/llms-txt設置の2案_具体.md** を参照。
+### 2. テーマ App Extension（LLMO head）
+
+ストアの `<head>` に以下のリンクを追加：
+
+```html
+<link rel="llms" href="https://shop.myshopify.com/llms.txt" />
+<link rel="llms-full" href="https://shop.myshopify.com/llms.full.txt" />
+<link rel="ai-context" href="https://shop.myshopify.com/.ai-context" />
+<link rel="ai-docs" href="https://shop.myshopify.com/docs/ai/README.md" />
+<link rel="sitemap" type="application/xml" href="https://shop.myshopify.com/apps/llmo/sitemap-ai.xml" />
+```
+
+各リンクはテーマブロック設定で個別にオン/オフ可能。
+
+### 3. URL リダイレクト + App Proxy（アクセスログ）
+
+**フロー:**
+```
+/llms.txt → URL Redirect → /apps/llmo/llms.txt → App Proxy（ログ記録）→ CDN
+```
+
+- クリーンな URL（`/llms.txt`）でアクセス可能
+- App Proxy を経由することでアクセスログを記録
+- `.ai-context` は CDN の Content-Disposition 問題を回避するため、App Proxy が直接コンテンツをサーブ
+
+### 4. AI ボット検出・表示
+
+アクセスログから AI ボット（クローラー）を自動検出し、別セクションで表示。
+
+**検出対象ボット:**
+
+| ボット名 | サービス |
+|----------|----------|
+| GPTBot | OpenAI |
+| ChatGPT-User | OpenAI (Browse) |
+| OAI-SearchBot | OpenAI (Search) |
+| PerplexityBot | Perplexity |
+| ClaudeBot / Claude-Web | Anthropic |
+| Google-Extended | Google (Gemini/Bard) |
+| Amazonbot | Amazon |
+| Applebot-Extended | Apple Intelligence |
+| Bytespider | ByteDance |
+| CCBot | Common Crawl |
+| cohere-ai | Cohere |
+| Diffbot | Diffbot |
+| YouBot | You.com |
+
+新しい AI ボットを追加する場合は `app/lib/llmo-access-log.server.ts` の `AI_BOT_PATTERNS` に追記。
+
+### 5. アクセスログ集計
+
+- **総リクエスト数**
+- **ストア別**集計
+- **パス別**集計（llms.txt, .ai-context 等）
+- **日付別**集計
+- **AI ボット別**集計（サービス別、ボット名別）
+- **直近アクセス一覧**（AI ボットは緑色でハイライト）
 
 ---
 
-## 初回セットアップ（Cursor ルール・開発ルール）
-
-共通ルール（andplus-dev-rules）をサブモジュールで参照する。手順は **docs/common-rules-setup.md** を参照。
-
-- サブモジュール取得: `git submodule update --init --recursive`
-- Cursor がルールを読むため: `.cursor/rules` を `../_rules/.cursor/rules` へのシンボリックリンクにする
-
----
-
-## 技術・運用メモ
-
-- **リポジトリ**: `andplus-apps` の直下に `shopify-ap-llmo` として配置（本 README の場所）。同一親ディレクトリ内の他アプリ（`shopify-ap-schema`）と混同しないこと。
-- **サーバー・ドメイン**: andplus.tech 上の既存サーバーに載せる想定。カスタムアプリと共用で追加コストは最小限。
-- **想定ユーザー**: 新しもの好きのサイトオーナー、制作会社。制作会社が使う場合、思想の真似は想定内。お客様への支援（思想の伴走）で差別化。
-
----
-
-## 関連（壁打ちメモ）
-
-- 無料だから使ってみる層が増え、LLM・エージェントの普及に微力ながら貢献できる。
-- 同じ考え方が広がっても、思想を持っていない会社は使いこなせない。土俵が揃ったとき、思想と支援で差別化できる。
-- 金銭的価値を実感できる世界線はまだ数年先。いまは布石とポジション取り。
-
----
-
-## 開発の始め方
+## セットアップ
 
 ### 前提
 
 - Node.js 20.19+ または 22.12+
 - [Shopify CLI](https://shopify.dev/docs/apps/tools/cli) インストール済み
-- Shopify Partners でアプリを作成し、`shopify.app.toml` の `client_id` を取得済み
+- Shopify Partners でアプリを作成済み
 
 ### 初回セットアップ
 
 ```bash
 cd shopify-ap-llmo
 git submodule update --init --recursive
-ln -s ../_rules/.cursor/rules .cursor/rules   # 共通ルールを使う場合
-
 npm install
-```
 
-**環境変数（.env）**: 並列ディレクトリの **common** に置く想定（schemabridge と同様）。
-
-- 本番: `andplus-apps` と並列の `common/shopify-ap-llmo.env` に置く。`npm run start` が `DOTENV_CONFIG_PATH=../common/shopify-ap-llmo.env` で読む。
-- 開発: プロジェクト直下に `.env` を置くか、`common/shopify-ap-llmo.env` を用意する。`shopify app dev` は直下の `.env` を読む。
-
-```bash
-# 例: common にコピーして編集（本番サーバーで common を共有する場合）
-cp .env.example ../common/shopify-ap-llmo.env
-# または開発だけなら直下に
+# 環境変数（.env）を作成
 cp .env.example .env
+# または本番用: cp .env.example ../common/shopify-ap-llmo.env
 
-# .env を編集: SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SCOPES
-# DATABASE_URL は .env.example のまま（SQLite）でよい。MySQL は不要。
-
-# DB 初期化（ローカルは SQLite。ファイルが自動作成される）
+# DB 初期化（ローカルは SQLite）
 npm run setup
 ```
 
-### 開発サーバー・確認の流れ
+### 開発
 
-schemabridge と同様、**Partners のアプリ URL は本番のまま**運用する。確認時は **本番にデプロイしてから**、管理画面でアプリを開く。
+```bash
+# 本番デプロイしてから確認する運用
+npm run build:prod
+npm run deploy
+```
 
-- ビルド・デプロイ: `npm run build:prod` → `npm run deploy`（または CI でデプロイ）
-- 本番サーバーで `npm run start` 等でアプリを起動しておく
-- ストアの管理画面からアプリを開いて動作確認
+### 本番デプロイ
 
-ローカルで `shopify app dev` する場合はトンネル URL が変わるため、そのときだけ Partners の URL をトンネルに合わせる必要がある（通常の開発フローでは本番デプロイで確認）。
-
-### 403 が続くとき（ローカル）
-
-**インストール後に 403** になる場合、Partners のアプリ URL が本番（`https://apps.andplus.tech/...`）のため、**本番サーバーが未起動だと 403** になる。schemabridge と同様に、**本番にデプロイしてから**アプリを開いて確認する運用にする。
+```bash
+# サーバーで
+cd /var/www/apps.andplus.tech/andplus-apps/shopify-ap-llmo
+git pull
+source ../common/shopify-ap-llmo.env && npm run build:prod
+pm2 restart shopify-ap-llmo
+```
 
 ---
 
-トンネルでローカル開発する場合など、403 の他の原因として **CLI のトンネル**がブロックしていることがある。次を順に試す。
+## ファイル構成
 
-1. **URL リセット**  
-   ```bash
-   npm run dev -- --reset
-   ```  
-   表示された新しい URL を Partners に再設定してからアプリを開き直す。
-
-2. **localhost で開く**（トンネルを使わない）  
-   ```bash
-   npm run dev:localhost
-   ```  
-   ブラウザで表示された URL（`https://localhost:...`）を Partners のアプリ URL に設定。証明書の警告が出たら「詳細」→「安全でなくても開く」で進む。
-
-3. **ngrok を使う**  
-   ngrok を別ターミナルで起動し、  
-   ```bash
-   npm run dev -- --tunnel-url https://あなたのngrokのURL
-   ```  
-   Partners のアプリ URL をその ngrok URL に設定。
-
-4. **Cloudflare の設定と競合している場合**  
-   `~/.cloudflared/config.yaml` があると CLI のトンネルと競合することがある。一時的にリネームしてから `npm run dev` を試す。
-
-### ビルド・デプロイ
-
-```bash
-npm run build:prod   # 本番 URL でビルド
-npm run deploy       # Shopify に extension と app をデプロイ
 ```
-
-本番では **common/shopify-ap-llmo.env** で `SHOPIFY_APP_URL` を `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` にし、`DATABASE_URL` で MySQL を指定。ビルド・DB マイグレーションは `npm run setup:prod`（prisma-mysql 使用）で実行する。
-
-**OpenAI API Key 用カラムがない場合**（「AI で生成」を使うのに「API Key が設定されていません」と出る場合）: 本番 MySQL の `LlmoSettings` に `openaiApiKey` 列が無いと保存・表示できません。以下で追加してください。
-```bash
-# 本番サーバーで（DATABASE_URL が MySQL を指していること）
-sh scripts/migrate-mysql.sh
+shopify-ap-llmo/
+├── app/
+│   ├── routes/
+│   │   ├── app._index.tsx      # メイン管理画面
+│   │   ├── app.access-log.tsx  # アクセスログ画面
+│   │   └── app-proxy.$.tsx     # App Proxy ハンドラ
+│   └── lib/
+│       ├── llmo-files.server.ts       # Shopify Files API / URL Redirect
+│       ├── llmo-access-log.server.ts  # アクセスログ記録・集計・AI ボット検出
+│       ├── openai.server.ts           # OpenAI API（llms.txt / .ai-context 生成）
+│       └── i18n.ts                    # 日本語・英語対応
+├── extensions/
+│   └── andplus-llmo-theme/
+│       └── blocks/
+│           └── llmo-head.liquid  # テーマ App Extension（<head> リンク追加）
+├── prisma/
+│   └── schema.prisma             # SQLite（開発用）
+├── prisma-mysql/
+│   └── schema.prisma             # MySQL（本番用）
+└── log/
+    └── llmo-access.log           # アクセスログファイル（NDJSON）
 ```
-または SQL を直接実行する場合:
-```sql
-ALTER TABLE `LlmoSettings` ADD COLUMN `openaiApiKey` TEXT NULL;
-```
-
-**Nginx**: 本番サーバーで `https://apps.andplus.tech/andplus-apps/shopify-ap-llmo/` を Node にプロキシする **location の追加**が必要。設定例は **docs/NGINX.md** を参照。
-
-### 構成
-
-- **app/** … React Router + Shopify App（OAuth・webhook・管理画面 1 ページ）
-- **extensions/andplus-llmo-theme/** … Theme app extension。ストアの `<head>` に llms.txt / docs/ai への link を追加するブロック「LLMO head」
-
-### 動かして確認（初回チェック）
-
-「リンクを出す」ところまで動くか確認する手順。
-
-1. **ストアにアプリをインストール**
-   - Partners のアプリから「テストストアを追加」するか、既存ストアの管理画面で「アプリ」→「カスタムアプリを追加」→ 対象アプリをインストール。
-
-2. **テーマで「LLMO head」ブロックを有効にする**
-   - 管理画面で **オンラインストア** → **テーマ** → **カスタマイズ** を開く。
-   - 左の「アプリ」または「アプリの埋め込み」などから **AP LLMO** を選び、**LLMO head** ブロックを追加する（head 用ブロックはテーマによっては「ヘッダー」や「theme.liquid の head」などで追加できる場所が案内される）。
-   - ブロック設定で「LLMO リンクを head に追加する」がオンになっていることを確認し、**保存**。
-
-3. **ストアの `<head>` に link が出力されているか確認**
-   - ストアフロント（トップページなど）をブラウザで開く。
-   - 右クリック → **ページのソースを表示**（または開発者ツールの Elements で `<head>` 内）を開く。
-   - 次のような `<link>` が含まれているか確認する:
-     - llms.txt: `rel="alternate" type="text/plain" href="(メタフィールドの CDN URL)"`（案B: アプリで「作成」した Files の URL）
-     - `href=".../llms.full.txt"`
-     - `href=".../docs/ai/README.md"`
-
-ここまで確認できれば「リンクを出す」ところは完了。llms.txt などの**中身**はまだ 404 でよい（リンクの出力だけ確認）。
 
 ---
+
+## データベーススキーマ（LlmoSettings）
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| shop | String | ストア識別子（myshopify.com ドメイン） |
+| siteType | String? | サイト種類（corporate / ec / corporate_ec） |
+| title | String? | llms.txt タイトル |
+| roleSummary | String? | llms.txt 役割・一次情報の所在 |
+| sectionsOutline | String? | セクション構成メモ |
+| notesForAi | String? | Notes for AI |
+| llmsTxtBody | String? | llms.txt 本文 |
+| llmsTxtFileId | String? | Shopify Files ID |
+| llmsTxtFileUrl | String? | CDN URL |
+| llmsFullTxtFileId | String? | llms.full.txt Files ID |
+| llmsFullTxtFileUrl | String? | llms.full.txt CDN URL |
+| llmsFullTxtGeneratedAt | DateTime? | 最終生成日時 |
+| aiContextBody | String? | .ai-context 本文 |
+| aiContextFileId | String? | .ai-context Files ID |
+| aiContextFileUrl | String? | .ai-context CDN URL |
+| aiContextGeneratedAt | DateTime? | 最終生成日時 |
+| docsAiFiles | String? | docs/ai/*.md 一覧（JSON） |
+| openaiApiKey | String? | OpenAI API Key（暗号化推奨） |
+
+---
+
+## 関連ドキュメント
+
+- **docs/llms-txt設置の2案_具体.md** - llms.txt 設置方針
+- **docs/NGINX.md** - Nginx 設定例
+- **docs/common-rules-setup.md** - 共通ルールのセットアップ
+
+---
+
+## ライセンス・お問い合わせ
+
+- **開発**: ANDPLUS Inc.
+- **お問い合わせ**: https://www.andplus.co.jp/contact
