@@ -3,16 +3,16 @@
   ルートパス /llms.txt 等を使用。アプリがファイル保存時に URL リダイレクトを自動設定し、CDN URL に直接転送する。
 {% endcomment %}
 {%- if block.settings.show_llms_txt %}
-<link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.txt" title="LLM-oriented document (llms.txt)" />
+<link rel="llms" href="{{ shop.url }}/llms.txt" />
 {%- endif %}
 {%- if block.settings.show_llms_full_txt %}
-<link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.full.txt" title="LLM-oriented full summary (llms.full.txt)" />
+<link rel="llms-full" href="{{ shop.url }}/llms.full.txt" />
 {%- endif %}
 {%- if block.settings.show_ai_context %}
-<link rel="alternate" type="text/plain" href="{{ shop.url }}/.ai-context" title="AI Context for this store" />
+<link rel="ai-context" href="{{ shop.url }}/.ai-context" />
 {%- endif %}
 {%- if block.settings.show_docs_ai_readme %}
-<link rel="alternate" type="text/markdown" href="{{ shop.url }}/docs/ai/README.md" title="LLMO docs: README" />
+<link rel="ai-docs" href="{{ shop.url }}/docs/ai/README.md" />
 {%- endif %}
 {% schema %}
 {
