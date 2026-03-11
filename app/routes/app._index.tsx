@@ -9,12 +9,14 @@ import { buildLlmsTxtPrompt } from "../lib/llmo-prompt.server";
 import {
   createOrUpdateLlmsTxtFile,
   createOrUpdateLlmsFullTxtFile,
+  createOrUpdateAiContextFile,
   createOrUpdateDocsAiFiles,
   setupAllUrlRedirects,
   type DocsAiFileEntry,
 } from "../lib/llmo-files.server";
 import { getDecryptedOpenAiKey, generateLlmsTxtBody, generateLlmsTxtBodyRefinement, refineLlmsFullTxt } from "../lib/openai.server";
 import { fetchStoreData, formatStoreDataAsText } from "../lib/llmo-full.server";
+import { extractAiContextData, formatAiContext } from "../lib/llmo-ai-context.server";
 import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 
@@ -48,6 +50,8 @@ const emptySettings = {
   llmsTxtFileUrl: "",
   llmsFullTxtFileUrl: "",
   llmsFullTxtGeneratedAt: null as string | null,
+  aiContextFileUrl: "",
+  aiContextGeneratedAt: null as string | null,
   docsAiFiles: [] as DocsAiFileEntry[],
   openaiApiKeySet: false,
 };
@@ -73,6 +77,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtFileUrl: true,
             llmsFullTxtFileUrl: true,
             llmsFullTxtGeneratedAt: true,
+            aiContextFileUrl: true,
+            aiContextGeneratedAt: true,
             docsAiFiles: true,
           },
         })
@@ -110,6 +116,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             llmsTxtFileUrl: settings.llmsTxtFileUrl ?? "",
             llmsFullTxtFileUrl: settings.llmsFullTxtFileUrl ?? "",
             llmsFullTxtGeneratedAt: settings.llmsFullTxtGeneratedAt?.toISOString() ?? null,
+            aiContextFileUrl: settings.aiContextFileUrl ?? "",
+            aiContextGeneratedAt: settings.aiContextGeneratedAt?.toISOString() ?? null,
             docsAiFiles,
             openaiApiKeySet,
           }
@@ -352,17 +360,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const existing = await prisma.llmoSettings.findUnique({
         where: { shop },
-        select: { llmsFullTxtFileId: true },
+        select: { llmsFullTxtFileId: true, aiContextFileId: true, siteType: true },
       });
 
-      const result = await createOrUpdateLlmsFullTxtFile(
+      // llms.full.txt をアップロード
+      const fullTxtResult = await createOrUpdateLlmsFullTxtFile(
         admin,
         fullTxtBody,
         existing?.llmsFullTxtFileId ?? null
       );
 
-      if (!result.ok) {
-        return Response.json({ ok: false, error: result.error }, { status: 400 });
+      if (!fullTxtResult.ok) {
+        return Response.json({ ok: false, error: fullTxtResult.error }, { status: 400 });
+      }
+
+      // .ai-context を生成してアップロード（必須）
+      const aiContextData = extractAiContextData(storeData, existing?.siteType ?? null);
+      const aiContextBody = formatAiContext(aiContextData);
+      const aiContextResult = await createOrUpdateAiContextFile(
+        admin,
+        aiContextBody,
+        existing?.aiContextFileId ?? null
+      );
+
+      if (!aiContextResult.ok) {
+        console.error("[ap-llmo] .ai-context upload failed:", aiContextResult.error);
       }
 
       try {
@@ -370,39 +392,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           where: { shop },
           create: {
             shop,
-            llmsFullTxtFileUrl: result.url,
-            llmsFullTxtFileId: result.fileId,
+            llmsFullTxtFileUrl: fullTxtResult.url,
+            llmsFullTxtFileId: fullTxtResult.fileId,
             llmsFullTxtGeneratedAt: new Date(),
+            aiContextFileUrl: aiContextResult.ok ? aiContextResult.url : null,
+            aiContextFileId: aiContextResult.ok ? aiContextResult.fileId : null,
+            aiContextGeneratedAt: aiContextResult.ok ? new Date() : null,
           },
           update: {
-            llmsFullTxtFileUrl: result.url,
-            llmsFullTxtFileId: result.fileId,
+            llmsFullTxtFileUrl: fullTxtResult.url,
+            llmsFullTxtFileId: fullTxtResult.fileId,
             llmsFullTxtGeneratedAt: new Date(),
+            aiContextFileUrl: aiContextResult.ok ? aiContextResult.url : undefined,
+            aiContextFileId: aiContextResult.ok ? aiContextResult.fileId : undefined,
+            aiContextGeneratedAt: aiContextResult.ok ? new Date() : undefined,
           },
         });
       } catch {
         const id = randomUUID();
         await prisma.$executeRawUnsafe(
-          `INSERT INTO LlmoSettings (id, shop, llmsFullTxtFileUrl, llmsFullTxtFileId, llmsFullTxtGeneratedAt, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, NOW(), NOW(), NOW())
+          `INSERT INTO LlmoSettings (id, shop, llmsFullTxtFileUrl, llmsFullTxtFileId, llmsFullTxtGeneratedAt, aiContextFileUrl, aiContextFileId, aiContextGeneratedAt, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, NOW(), ?, ?, NOW(), NOW(), NOW())
            ON DUPLICATE KEY UPDATE
              llmsFullTxtFileUrl = VALUES(llmsFullTxtFileUrl),
              llmsFullTxtFileId = VALUES(llmsFullTxtFileId),
              llmsFullTxtGeneratedAt = NOW(),
+             aiContextFileUrl = VALUES(aiContextFileUrl),
+             aiContextFileId = VALUES(aiContextFileId),
+             aiContextGeneratedAt = NOW(),
              updatedAt = NOW()`,
           id,
           shop,
-          result.url,
-          result.fileId
+          fullTxtResult.url,
+          fullTxtResult.fileId,
+          aiContextResult.ok ? aiContextResult.url : null,
+          aiContextResult.ok ? aiContextResult.fileId : null
         );
       }
 
-      // URL リダイレクトを設定（/llms.full.txt → CDN URL）
-      setupAllUrlRedirects(admin, { llmsFullTxtUrl: result.url }).catch((e) =>
+      // URL リダイレクトを設定（/llms.full.txt, /.ai-context → CDN URL）
+      setupAllUrlRedirects(admin, {
+        llmsFullTxtUrl: fullTxtResult.url,
+        aiContextUrl: aiContextResult.ok ? aiContextResult.url : null,
+      }).catch((e) =>
         console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
       );
 
-      return Response.json({ ok: true, url: result.url });
+      return Response.json({
+        ok: true,
+        url: fullTxtResult.url,
+        aiContextUrl: aiContextResult.ok ? aiContextResult.url : null,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("[ap-llmo] generateFullTxt error:", err);
@@ -1109,6 +1149,30 @@ export default function AppIndex() {
             {t.llmsFullTxtGeneratedAt}: {new Date(data.settings.llmsFullTxtGeneratedAt).toLocaleString()}
           </p>
         )}
+
+        {/* .ai-context（llms.full.txt と同時に生成） */}
+        <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e4e5e7" }}>
+          <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiContextSectionTitle}</h3>
+          <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
+            {t.aiContextDesc}
+          </p>
+          {data.settings.aiContextFileUrl ? (
+            <>
+              <p style={{ fontSize: "0.875rem", color: "#6d7175" }}>
+                {t.aiContextUrl}: <a href={data.settings.aiContextFileUrl} target="_blank" rel="noopener noreferrer">{data.settings.aiContextFileUrl}</a>
+              </p>
+              {data.settings.aiContextGeneratedAt && (
+                <p style={{ marginTop: "0.25rem", fontSize: "0.8125rem", color: "#6d7175" }}>
+                  {t.aiContextGeneratedAt}: {new Date(data.settings.aiContextGeneratedAt).toLocaleString()}
+                </p>
+              )}
+            </>
+          ) : (
+            <p style={{ fontSize: "0.8125rem", color: "#6d7175" }}>
+              {t.aiContextNotSet}
+            </p>
+          )}
+        </div>
       </section>
       </main>
 

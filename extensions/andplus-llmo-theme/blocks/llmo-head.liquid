@@ -2,9 +2,16 @@
   AP LLMO: ストアの head に LLM・エージェント向け文書への link を追加する。
   ルートパス /llms.txt 等を使用。アプリがファイル保存時に URL リダイレクトを自動設定し、CDN URL に直接転送する。
 {% endcomment %}
-{%- if block.settings.enabled -%}
+{%- if block.settings.show_llms_txt -%}
   <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.txt" title="LLM-oriented document (llms.txt)" />
+{%- endif -%}
+{%- if block.settings.show_llms_full_txt -%}
   <link rel="alternate" type="text/plain" href="{{ shop.url }}/llms.full.txt" title="LLM-oriented full summary (llms.full.txt)" />
+{%- endif -%}
+{%- if block.settings.show_ai_context -%}
+  <link rel="alternate" type="text/plain" href="{{ shop.url }}/.ai-context" title="AI Context for this store" />
+{%- endif -%}
+{%- if block.settings.show_docs_ai_readme -%}
   <link rel="alternate" type="text/markdown" href="{{ shop.url }}/docs/ai/README.md" title="LLMO docs: README" />
 {%- endif -%}
 {% schema %}
@@ -16,10 +23,36 @@
   },
   "settings": [
     {
+      "type": "header",
+      "content": "表示するリンク"
+    },
+    {
       "type": "checkbox",
-      "id": "enabled",
-      "label": "LLMO リンクを head に追加する",
+      "id": "show_llms_txt",
+      "label": "llms.txt",
+      "info": "LLM向けサイト概要（手動作成）",
       "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_llms_full_txt",
+      "label": "llms.full.txt",
+      "info": "LLM向け詳細情報（自動生成）",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_ai_context",
+      "label": ".ai-context",
+      "info": "AI解釈ガイドライン（自動生成）",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_docs_ai_readme",
+      "label": "docs/ai/README.md",
+      "info": "AI用ドキュメント",
+      "default": false
     }
   ]
 }

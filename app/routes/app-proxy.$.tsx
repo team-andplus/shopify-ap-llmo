@@ -34,6 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     select: {
       llmsTxtFileUrl: true,
       llmsFullTxtFileUrl: true,
+      aiContextFileUrl: true,
       docsAiFiles: true,
     },
   });
@@ -44,6 +45,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (path === "llms.full.txt" && settings?.llmsFullTxtFileUrl) {
     return redirect(settings.llmsFullTxtFileUrl, 302);
+  }
+
+  if (path === ".ai-context" && settings?.aiContextFileUrl) {
+    return redirect(settings.aiContextFileUrl, 302);
   }
 
   if (path === "docs/ai/README.md" && settings?.docsAiFiles) {

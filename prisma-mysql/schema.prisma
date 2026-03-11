@@ -44,6 +44,9 @@ model LlmoSettings {
   llmsFullTxtFileUrl   String?  @db.Text
   llmsFullTxtFileId    String?
   llmsFullTxtGeneratedAt DateTime?
+  aiContextFileUrl     String?  @db.Text
+  aiContextFileId      String?
+  aiContextGeneratedAt DateTime?
   docsAiFiles          String?  @db.Text
   openaiApiKey         String?  @db.Text
   createdAt            DateTime @default(now())

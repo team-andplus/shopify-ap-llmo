@@ -7,6 +7,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 
 const LLMS_TXT_FILENAME = "llms.txt";
 const LLMS_FULL_TXT_FILENAME = "llms.full.txt";
+const AI_CONTEXT_FILENAME = ".ai-context";
 const METAFIELD_NAMESPACE = "llmo";
 const METAFIELD_KEY_LLMS_TXT_URL = "llms_txt_url";
 
@@ -103,6 +104,56 @@ export async function createOrUpdateLlmsFullTxtFile(
       buffer,
       "text/plain; charset=utf-8",
       LLMS_FULL_TXT_FILENAME
+    );
+    if (!uploaded.ok) return { ok: false, error: uploaded.error };
+
+    if (existingFileId) {
+      const updated = await fileUpdate(admin, existingFileId, staged.value.resourceUrl);
+      if (!updated.ok) return { ok: false, error: updated.error };
+      return { ok: true, url: updated.url, fileId: updated.id };
+    }
+
+    await new Promise((r) => setTimeout(r, 2500));
+    const created = await fileCreate(admin, staged.value.resourceUrl);
+    if (!created.ok) return { ok: false, error: created.error };
+    return { ok: true, url: created.url, fileId: created.id };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * .ai-context を Shopify Files にアップロードする。既存の fileId があれば更新。
+ */
+export async function createOrUpdateAiContextFile(
+  admin: AdminApiContext,
+  body: string,
+  existingFileId: string | null
+): Promise<CreateLlmsTxtFileResult> {
+  const content = body.trim();
+  if (!content) {
+    return { ok: false, error: "本文が空です。" };
+  }
+
+  const buffer = Buffer.from(content, "utf-8");
+  const fileSize = buffer.length;
+
+  try {
+    const staged = await getStagedUploadTargetForFile(
+      admin,
+      AI_CONTEXT_FILENAME,
+      "text/plain",
+      fileSize
+    );
+    if (!staged.ok) return { ok: false, error: staged.error };
+
+    const uploaded = await uploadToStagedUrl(
+      staged.value.url,
+      staged.value.parameters,
+      buffer,
+      "text/plain; charset=utf-8",
+      AI_CONTEXT_FILENAME
     );
     if (!uploaded.ok) return { ok: false, error: uploaded.error };
 
@@ -644,19 +695,21 @@ async function findUrlRedirectByPath(
 }
 
 /**
- * llms.txt, llms.full.txt, docs/ai/*.md のリダイレクトをまとめて設定する。
+ * llms.txt, llms.full.txt, .ai-context, docs/ai/*.md のリダイレクトをまとめて設定する。
  */
 export async function setupAllUrlRedirects(
   admin: AdminApiContext,
   options: {
     llmsTxtUrl?: string | null;
     llmsFullTxtUrl?: string | null;
+    aiContextUrl?: string | null;
     docsAiFiles?: Array<{ filename: string; fileUrl?: string | null }>;
   }
 ): Promise<void> {
   console.log("[llmo-files] setupAllUrlRedirects called with:", {
     llmsTxtUrl: options.llmsTxtUrl ? "set" : "not set",
     llmsFullTxtUrl: options.llmsFullTxtUrl ? "set" : "not set",
+    aiContextUrl: options.aiContextUrl ? "set" : "not set",
     docsAiFilesCount: options.docsAiFiles?.length ?? 0,
   });
 
@@ -679,6 +732,16 @@ export async function setupAllUrlRedirects(
         return result;
       }).catch((e) => {
         console.error("[llmo-files] redirect /llms.full.txt failed:", e);
+      })
+    );
+  }
+  if (options.aiContextUrl) {
+    tasks.push(
+      createOrUpdateUrlRedirect(admin, "/.ai-context", options.aiContextUrl).then((result) => {
+        console.log("[llmo-files] redirect /.ai-context result:", result);
+        return result;
+      }).catch((e) => {
+        console.error("[llmo-files] redirect /.ai-context failed:", e);
       })
     );
   }

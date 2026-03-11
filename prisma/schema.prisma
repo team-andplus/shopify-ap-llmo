@@ -45,6 +45,9 @@ model LlmoSettings {
   llmsFullTxtFileUrl     String?   // llms.full.txt の CDN URL
   llmsFullTxtFileId      String?   // llms.full.txt の file id
   llmsFullTxtGeneratedAt DateTime? // llms.full.txt の最終生成日時
+  aiContextFileUrl       String?   // .ai-context の CDN URL
+  aiContextFileId        String?   // .ai-context の file id
+  aiContextGeneratedAt   DateTime? // .ai-context の最終生成日時
   docsAiFiles            String?   // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
   openaiApiKey           String?   // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
   createdAt              DateTime  @default(now())
