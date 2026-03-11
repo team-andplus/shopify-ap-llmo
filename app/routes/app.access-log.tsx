@@ -9,7 +9,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session?.shop ?? "";
   const locale = getLocaleFromRequest(request);
   const aggregates = await readAndAggregateLlmoAccessLog(shop);
-  return { aggregates, locale, t: getTranslations(locale) };
+  const aiBotPatterns = AI_BOT_PATTERNS.map((b) => ({ name: b.name, service: b.service }));
+  return { aggregates, locale, t: getTranslations(locale), aiBotPatterns };
 };
 
 const tableStyle: React.CSSProperties = {
@@ -31,7 +32,7 @@ function sortByCount(entries: [string, number][]): [string, number][] {
 }
 
 export default function AccessLogPage() {
-  const { aggregates, t } = useLoaderData<typeof loader>();
+  const { aggregates, t, aiBotPatterns } = useLoaderData<typeof loader>();
   const { total, byShop, byPath, byDate, recent, aiBotTotal, aiBotByService, aiBotByBot, aiBotRecent } = aggregates;
 
   return (
@@ -74,8 +75,8 @@ export default function AccessLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {AI_BOT_PATTERNS.map((bot) => (
-                    <tr key={bot.pattern}>
+                  {aiBotPatterns.map((bot) => (
+                    <tr key={bot.name}>
                       <td style={thTdStyle}>{bot.name}</td>
                       <td style={thTdStyle}>{bot.service}</td>
                     </tr>
