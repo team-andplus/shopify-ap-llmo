@@ -213,28 +213,31 @@ async function fetchLocations(admin: AdminApiContext): Promise<LocationData[]> {
 }
 
 async function fetchPolicies(admin: AdminApiContext): Promise<{ shipping: string; refund: string }> {
-  const query = `#graphql
-    query {
-      shop {
-        shippingPolicy { body }
-        refundPolicy { body }
+  try {
+    const query = `#graphql
+      query {
+        shopPolicies {
+          type
+          body
+        }
       }
-    }
-  `;
-  const res = await admin.graphql(query);
-  const json = (await res.json()) as {
-    data?: {
-      shop?: {
-        shippingPolicy?: { body?: string };
-        refundPolicy?: { body?: string };
+    `;
+    const res = await admin.graphql(query);
+    const json = (await res.json()) as {
+      data?: {
+        shopPolicies?: Array<{ type: string; body: string }>;
       };
     };
-  };
-  const shop = json.data?.shop;
-  return {
-    shipping: stripHtml(shop?.shippingPolicy?.body ?? ""),
-    refund: stripHtml(shop?.refundPolicy?.body ?? ""),
-  };
+    const policies = json.data?.shopPolicies ?? [];
+    const shipping = policies.find((p) => p.type === "SHIPPING_POLICY")?.body ?? "";
+    const refund = policies.find((p) => p.type === "REFUND_POLICY")?.body ?? "";
+    return {
+      shipping: stripHtml(shipping),
+      refund: stripHtml(refund),
+    };
+  } catch {
+    return { shipping: "", refund: "" };
+  }
 }
 
 function stripHtml(html: string): string {
