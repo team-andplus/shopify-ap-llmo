@@ -10,6 +10,46 @@ const LOG_DIR = "log";
 const LOG_FILE = "llmo-access.log";
 const RECENT_MAX = 100;
 
+/**
+ * AI ボット判定用のリスト
+ * 新しい AI ボットを追加する場合はここに追記してください。
+ * - pattern: User-Agent に含まれる文字列（大文字小文字を区別しない）
+ * - name: 表示名
+ * - service: サービス名
+ */
+export const AI_BOT_PATTERNS: Array<{ pattern: string; name: string; service: string }> = [
+  { pattern: "GPTBot", name: "GPTBot", service: "OpenAI" },
+  { pattern: "ChatGPT-User", name: "ChatGPT-User", service: "OpenAI (Browse)" },
+  { pattern: "OAI-SearchBot", name: "OAI-SearchBot", service: "OpenAI (Search)" },
+  { pattern: "PerplexityBot", name: "PerplexityBot", service: "Perplexity" },
+  { pattern: "Claude-Web", name: "Claude-Web", service: "Anthropic" },
+  { pattern: "ClaudeBot", name: "ClaudeBot", service: "Anthropic" },
+  { pattern: "Google-Extended", name: "Google-Extended", service: "Google (Gemini/Bard)" },
+  { pattern: "Amazonbot", name: "Amazonbot", service: "Amazon" },
+  { pattern: "Applebot-Extended", name: "Applebot-Extended", service: "Apple Intelligence" },
+  { pattern: "Bytespider", name: "Bytespider", service: "ByteDance" },
+  { pattern: "CCBot", name: "CCBot", service: "Common Crawl" },
+  { pattern: "cohere-ai", name: "cohere-ai", service: "Cohere" },
+  { pattern: "anthropic-ai", name: "anthropic-ai", service: "Anthropic" },
+  { pattern: "Diffbot", name: "Diffbot", service: "Diffbot" },
+  { pattern: "YouBot", name: "YouBot", service: "You.com" },
+];
+
+/**
+ * User-Agent から AI ボット情報を判定
+ * @returns AI ボット情報、または null（AI ボットでない場合）
+ */
+export function detectAiBot(userAgent: string): { name: string; service: string } | null {
+  if (!userAgent) return null;
+  const uaLower = userAgent.toLowerCase();
+  for (const bot of AI_BOT_PATTERNS) {
+    if (uaLower.includes(bot.pattern.toLowerCase())) {
+      return { name: bot.name, service: bot.service };
+    }
+  }
+  return null;
+}
+
 function getLogPath(): string {
   return join(process.cwd(), LOG_DIR, LOG_FILE);
 }
@@ -45,6 +85,16 @@ export type LlmoAccessLogEntry = {
   path: string;
   ua: string;
   ip: string;
+  aiBot?: { name: string; service: string } | null;
+};
+
+export type AiBotAccess = {
+  t: string;
+  shop: string;
+  path: string;
+  ip: string;
+  botName: string;
+  botService: string;
 };
 
 export type LlmoAccessLogAggregates = {
@@ -53,6 +103,11 @@ export type LlmoAccessLogAggregates = {
   byPath: Record<string, number>;
   byDate: Record<string, number>;
   recent: LlmoAccessLogEntry[];
+  // AI ボット関連
+  aiBotTotal: number;
+  aiBotByService: Record<string, number>;
+  aiBotByBot: Record<string, number>;
+  aiBotRecent: AiBotAccess[];
 };
 
 const emptyAggregates: LlmoAccessLogAggregates = {
@@ -61,6 +116,10 @@ const emptyAggregates: LlmoAccessLogAggregates = {
   byPath: {},
   byDate: {},
   recent: [],
+  aiBotTotal: 0,
+  aiBotByService: {},
+  aiBotByBot: {},
+  aiBotRecent: [],
 };
 
 /**
@@ -86,6 +145,13 @@ export async function readAndAggregateLlmoAccessLog(
   const byDate: Record<string, number> = {};
   const recent: LlmoAccessLogEntry[] = [];
   let total = 0;
+
+  // AI ボット用
+  const aiBotByService: Record<string, number> = {};
+  const aiBotByBot: Record<string, number> = {};
+  const aiBotRecent: AiBotAccess[] = [];
+  let aiBotTotal = 0;
+
   const filterShop = shopFilter ?? undefined;
 
   const lines = raw.split(/\n/).filter((s) => s.trim());
@@ -99,12 +165,30 @@ export async function readAndAggregateLlmoAccessLog(
       const ua = typeof (row as LlmoAccessLogEntry).ua === "string" ? (row as LlmoAccessLogEntry).ua : "";
       const ip = typeof (row as LlmoAccessLogEntry).ip === "string" ? (row as LlmoAccessLogEntry).ip : "";
       if (filterShop !== undefined && shop !== filterShop) continue;
+
       const day = t.slice(0, 10);
       byShop[shop] = (byShop[shop] ?? 0) + 1;
       byPath[path] = (byPath[path] ?? 0) + 1;
       byDate[day] = (byDate[day] ?? 0) + 1;
       total += 1;
-      recent.push({ t, shop, path, ua, ip });
+
+      // AI ボット判定
+      const aiBot = detectAiBot(ua);
+      recent.push({ t, shop, path, ua, ip, aiBot });
+
+      if (aiBot) {
+        aiBotTotal += 1;
+        aiBotByService[aiBot.service] = (aiBotByService[aiBot.service] ?? 0) + 1;
+        aiBotByBot[aiBot.name] = (aiBotByBot[aiBot.name] ?? 0) + 1;
+        aiBotRecent.push({
+          t,
+          shop,
+          path,
+          ip,
+          botName: aiBot.name,
+          botService: aiBot.service,
+        });
+      }
     } catch {
       // パース失敗行はスキップ
     }
@@ -113,5 +197,18 @@ export async function readAndAggregateLlmoAccessLog(
   recent.reverse();
   if (recent.length > RECENT_MAX) recent.length = RECENT_MAX;
 
-  return { total, byShop, byPath, byDate, recent };
+  aiBotRecent.reverse();
+  if (aiBotRecent.length > RECENT_MAX) aiBotRecent.length = RECENT_MAX;
+
+  return {
+    total,
+    byShop,
+    byPath,
+    byDate,
+    recent,
+    aiBotTotal,
+    aiBotByService,
+    aiBotByBot,
+    aiBotRecent,
+  };
 }

@@ -151,6 +151,17 @@ export const translations = {
     sitemapDesc: "AI 向け文書の URL を含むサイトマップです。Google Search Console 等に登録してクロールを促進できます。",
     sitemapUrl: "サイトマップ URL",
     sitemapCopyHint: "上記 URL を Google Search Console の「サイトマップ」から送信してください。",
+    // AI ボットアクセス
+    aiBotAccessTitle: "AI ボットからのアクセス",
+    aiBotAccessDesc: "ChatGPT、Perplexity、Claude などの AI サービスからのアクセスを検出して表示しています。",
+    aiBotTotalRequests: "AI ボットからのリクエスト数",
+    aiBotByService: "サービス別",
+    aiBotByBot: "ボット別",
+    aiBotRecentAccess: "AI ボットの直近アクセス",
+    aiBotService: "サービス",
+    aiBotName: "ボット名",
+    aiBotNoData: "AI ボットからのアクセスはまだありません。llms.txt 等を設置すると AI クローラーが訪問する可能性があります。",
+    aiBotHighlight: "AI が見に来ています！",
   },
   en: {
     appTitle: "AP LLMO",
@@ -298,6 +309,17 @@ export const translations = {
     sitemapDesc: "A sitemap containing URLs of AI-oriented documents. Register it with Google Search Console to facilitate crawling.",
     sitemapUrl: "Sitemap URL",
     sitemapCopyHint: "Submit the above URL via \"Sitemaps\" in Google Search Console.",
+    // AI bot access
+    aiBotAccessTitle: "AI Bot Access",
+    aiBotAccessDesc: "Detects and displays access from AI services such as ChatGPT, Perplexity, Claude, etc.",
+    aiBotTotalRequests: "Requests from AI bots",
+    aiBotByService: "By service",
+    aiBotByBot: "By bot",
+    aiBotRecentAccess: "Recent AI bot access",
+    aiBotService: "Service",
+    aiBotName: "Bot name",
+    aiBotNoData: "No AI bot access yet. Once you set up llms.txt etc., AI crawlers may visit.",
+    aiBotHighlight: "AI is visiting!",
   },
 } as const;
 
