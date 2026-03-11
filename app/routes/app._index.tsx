@@ -360,7 +360,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const existing = await prisma.llmoSettings.findUnique({
         where: { shop },
-        select: { llmsFullTxtFileId: true, aiContextFileId: true, siteType: true },
+        select: { llmsFullTxtFileId: true, aiContextFileId: true, siteType: true, notesForAi: true },
       });
 
       // llms.full.txt をアップロード
@@ -375,7 +375,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       // .ai-context を生成してアップロード（必須）
-      const aiContextData = extractAiContextData(storeData, existing?.siteType ?? null);
+      // ストアオーナーが設定した notesForAi を反映
+      const aiContextData = extractAiContextData(storeData, existing?.siteType ?? null, existing?.notesForAi ?? null);
       const aiContextBody = formatAiContext(aiContextData);
       const aiContextResult = await createOrUpdateAiContextFile(
         admin,

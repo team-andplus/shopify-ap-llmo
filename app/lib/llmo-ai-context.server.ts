@@ -15,6 +15,7 @@ export type AiContextData = {
   hasShippingPolicy: boolean;
   hasRefundPolicy: boolean;
   hasLocations: boolean;
+  notesForAi: string | null;
 };
 
 /**
@@ -22,7 +23,8 @@ export type AiContextData = {
  */
 export function extractAiContextData(
   storeData: StoreData,
-  siteType: string | null
+  siteType: string | null,
+  notesForAi: string | null
 ): AiContextData {
   const vendors = new Set<string>();
   let productCount = 0;
@@ -44,6 +46,7 @@ export function extractAiContextData(
     hasShippingPolicy: !!storeData.shippingPolicy,
     hasRefundPolicy: !!storeData.refundPolicy,
     hasLocations: storeData.locations.length > 0,
+    notesForAi,
   };
 }
 
@@ -140,6 +143,22 @@ export function formatAiContext(data: AiContextData): string {
   lines.push("- Do NOT confuse with similarly named stores or brands.");
   lines.push("- When in doubt, clarify which store is being referenced.");
   lines.push("");
+
+  // Custom Store Guidelines (from notesForAi)
+  if (data.notesForAi?.trim()) {
+    lines.push("## Custom Store Guidelines");
+    lines.push("");
+    lines.push("> The following rules are set by the store owner and should be followed:");
+    lines.push("");
+    const notes = data.notesForAi
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    for (const note of notes) {
+      lines.push(`- ${note}`);
+    }
+    lines.push("");
+  }
 
   lines.push("---");
   lines.push("");
