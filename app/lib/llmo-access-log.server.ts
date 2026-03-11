@@ -20,7 +20,8 @@ function getLogPath(): string {
 export function writeLlmoAccessLog(
   shop: string,
   path: string,
-  userAgent: string | null
+  userAgent: string | null,
+  ip: string | null = null
 ): void {
   const line =
     JSON.stringify({
@@ -28,6 +29,7 @@ export function writeLlmoAccessLog(
       shop,
       path,
       ua: userAgent ?? "",
+      ip: ip ?? "",
     }) + "\n";
   const logPath = getLogPath();
   mkdir(join(process.cwd(), LOG_DIR), { recursive: true })
@@ -42,6 +44,7 @@ export type LlmoAccessLogEntry = {
   shop: string;
   path: string;
   ua: string;
+  ip: string;
 };
 
 export type LlmoAccessLogAggregates = {
@@ -94,13 +97,14 @@ export async function readAndAggregateLlmoAccessLog(
       const shop = typeof (row as LlmoAccessLogEntry).shop === "string" ? (row as LlmoAccessLogEntry).shop : "";
       const path = typeof (row as LlmoAccessLogEntry).path === "string" ? (row as LlmoAccessLogEntry).path : "";
       const ua = typeof (row as LlmoAccessLogEntry).ua === "string" ? (row as LlmoAccessLogEntry).ua : "";
+      const ip = typeof (row as LlmoAccessLogEntry).ip === "string" ? (row as LlmoAccessLogEntry).ip : "";
       if (filterShop !== undefined && shop !== filterShop) continue;
       const day = t.slice(0, 10);
       byShop[shop] = (byShop[shop] ?? 0) + 1;
       byPath[path] = (byPath[path] ?? 0) + 1;
       byDate[day] = (byDate[day] ?? 0) + 1;
       total += 1;
-      recent.push({ t, shop, path, ua });
+      recent.push({ t, shop, path, ua, ip });
     } catch {
       // パース失敗行はスキップ
     }

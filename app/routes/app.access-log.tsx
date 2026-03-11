@@ -115,6 +115,7 @@ export default function AccessLogPage() {
                 <th style={thStyle}>{t.accessLogDate}</th>
                 <th style={thStyle}>{t.accessLogShop}</th>
                 <th style={thStyle}>{t.accessLogPath}</th>
+                <th style={thStyle}>{t.accessLogIp}</th>
                 <th style={thStyle}>{t.accessLogUserAgent}</th>
               </tr>
             </thead>
@@ -124,6 +125,7 @@ export default function AccessLogPage() {
                   <td style={thTdStyle}>{row.t}</td>
                   <td style={thTdStyle}>{row.shop}</td>
                   <td style={thTdStyle}>{row.path}</td>
+                  <td style={thTdStyle}>{row.ip || "—"}</td>
                   <td style={{ ...thTdStyle, maxWidth: "16rem", overflow: "hidden", textOverflow: "ellipsis" }} title={row.ua}>
                     {row.ua || "—"}
                   </td>

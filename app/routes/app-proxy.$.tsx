@@ -27,7 +27,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ? pathname.slice(idx + "app-proxy/".length).replace(/\/$/, "")
       : pathname.replace(/^\/+/, "");
 
-  writeLlmoAccessLog(shop, path, request.headers.get("user-agent"));
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  writeLlmoAccessLog(shop, path, request.headers.get("user-agent"), ip);
 
   // sitemap-ai.xml を生成して返す
   if (path === "sitemap-ai.xml") {
