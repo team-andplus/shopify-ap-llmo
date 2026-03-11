@@ -146,6 +146,10 @@ export const translations = {
     accessLogDate: "日付",
     accessLogCount: "件数",
     accessLogUserAgent: "User-Agent",
+    sitemapSectionTitle: "AI 向けサイトマップ",
+    sitemapDesc: "AI 向け文書の URL を含むサイトマップです。Google Search Console 等に登録してクロールを促進できます。",
+    sitemapUrl: "サイトマップ URL",
+    sitemapCopyHint: "上記 URL を Google Search Console の「サイトマップ」から送信してください。",
   },
   en: {
     appTitle: "AP LLMO",
@@ -288,6 +292,10 @@ export const translations = {
     accessLogDate: "Date",
     accessLogCount: "Count",
     accessLogUserAgent: "User-Agent",
+    sitemapSectionTitle: "AI Sitemap",
+    sitemapDesc: "A sitemap containing URLs of AI-oriented documents. Register it with Google Search Console to facilitate crawling.",
+    sitemapUrl: "Sitemap URL",
+    sitemapCopyHint: "Submit the above URL via \"Sitemaps\" in Google Search Console.",
   },
 } as const;
 

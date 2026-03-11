@@ -1453,6 +1453,16 @@ export default function AppIndex() {
         </section>
 
         <section style={sectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sitemapSectionTitle}</h2>
+          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>{t.sitemapDesc}</p>
+          <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.8125rem", fontWeight: 600 }}>{t.sitemapUrl}:</p>
+          <code style={{ display: "block", fontSize: "0.75rem", background: "#f1f1f1", padding: "0.5rem", borderRadius: "4px", wordBreak: "break-all", marginBottom: "0.5rem" }}>
+            {data.storeUrl}/apps/llmo/sitemap-ai.xml
+          </code>
+          <p style={{ margin: 0, fontSize: "0.75rem", color: "#6d7175" }}>{t.sitemapCopyHint}</p>
+        </section>
+
+        <section style={sectionStyle}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarRefTitle}</h2>
           <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>
             <li>

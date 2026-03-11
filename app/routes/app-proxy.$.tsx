@@ -29,6 +29,80 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   writeLlmoAccessLog(shop, path, request.headers.get("user-agent"));
 
+  // sitemap-ai.xml を生成して返す
+  if (path === "sitemap-ai.xml") {
+    const sitemapSettings = await prisma.llmoSettings.findUnique({
+      where: { shop },
+      select: {
+        llmsTxtFileUrl: true,
+        llmsFullTxtFileUrl: true,
+        llmsFullTxtGeneratedAt: true,
+        aiContextFileUrl: true,
+        aiContextGeneratedAt: true,
+        docsAiFiles: true,
+        updatedAt: true,
+      },
+    });
+
+    const shopUrl = `https://${shop}`;
+    const urls: Array<{ loc: string; lastmod?: string }> = [];
+
+    if (sitemapSettings?.llmsTxtFileUrl) {
+      urls.push({
+        loc: `${shopUrl}/llms.txt`,
+        lastmod: sitemapSettings.updatedAt?.toISOString(),
+      });
+    }
+    if (sitemapSettings?.llmsFullTxtFileUrl) {
+      urls.push({
+        loc: `${shopUrl}/llms.full.txt`,
+        lastmod: sitemapSettings.llmsFullTxtGeneratedAt?.toISOString(),
+      });
+    }
+    if (sitemapSettings?.aiContextFileUrl) {
+      urls.push({
+        loc: `${shopUrl}/.ai-context`,
+        lastmod: sitemapSettings.aiContextGeneratedAt?.toISOString(),
+      });
+    }
+    if (sitemapSettings?.docsAiFiles) {
+      try {
+        const arr = JSON.parse(sitemapSettings.docsAiFiles) as Array<{
+          filename?: string;
+          fileUrl?: string | null;
+        }>;
+        if (Array.isArray(arr)) {
+          for (const doc of arr) {
+            if (doc.filename && doc.fileUrl) {
+              urls.push({
+                loc: `${shopUrl}/docs/ai/${doc.filename}`,
+                lastmod: sitemapSettings.updatedAt?.toISOString(),
+              });
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls
+  .map(
+    (u) => `  <url>
+    <loc>${u.loc}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ""}
+  </url>`
+  )
+  .join("\n")}
+</urlset>`;
+
+    return new Response(xml, {
+      status: 200,
+      headers: { "Content-Type": "application/xml; charset=utf-8" },
+    });
+  }
+
   const settings = await prisma.llmoSettings.findUnique({
     where: { shop },
     select: {
