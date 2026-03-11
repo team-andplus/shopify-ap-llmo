@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { Link, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getLocaleFromRequest, getTranslations } from "../lib/i18n";
-import { readAndAggregateLlmoAccessLog } from "../lib/llmo-access-log.server";
+import { readAndAggregateLlmoAccessLog, AI_BOT_PATTERNS } from "../lib/llmo-access-log.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -60,7 +60,30 @@ export default function AccessLogPage() {
         <p style={{ color: "#666", fontSize: "0.875rem", marginBottom: "1rem" }}>{t.aiBotAccessDesc}</p>
 
         {aiBotTotal === 0 ? (
-          <p style={{ color: "#888", fontSize: "0.875rem" }}>{t.aiBotNoData}</p>
+          <>
+            <p style={{ color: "#888", fontSize: "0.875rem", marginBottom: "1rem" }}>{t.aiBotNoData}</p>
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary style={{ cursor: "pointer", color: "#666", fontSize: "0.875rem" }}>
+                {t.aiBotDetectionList}
+              </summary>
+              <table style={{ ...tableStyle, maxWidth: "30rem", marginTop: "0.5rem" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>{t.aiBotName}</th>
+                    <th style={thStyle}>{t.aiBotService}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {AI_BOT_PATTERNS.map((bot) => (
+                    <tr key={bot.pattern}>
+                      <td style={thTdStyle}>{bot.name}</td>
+                      <td style={thTdStyle}>{bot.service}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+          </>
         ) : (
           <>
             <p style={{ fontSize: "1.125rem", marginBottom: "1rem", fontWeight: "bold", color: "#2e7d32" }}>

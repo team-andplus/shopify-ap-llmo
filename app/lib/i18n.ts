@@ -162,6 +162,7 @@ export const translations = {
     aiBotName: "ボット名",
     aiBotNoData: "AI ボットからのアクセスはまだありません。llms.txt 等を設置すると AI クローラーが訪問する可能性があります。",
     aiBotHighlight: "AI が見に来ています！",
+    aiBotDetectionList: "検出対象の AI ボット一覧を見る",
   },
   en: {
     appTitle: "AP LLMO",
@@ -320,6 +321,7 @@ export const translations = {
     aiBotName: "Bot name",
     aiBotNoData: "No AI bot access yet. Once you set up llms.txt etc., AI crawlers may visit.",
     aiBotHighlight: "AI is visiting!",
+    aiBotDetectionList: "View list of detectable AI bots",
   },
 } as const;
 
