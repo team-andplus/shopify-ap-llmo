@@ -570,6 +570,12 @@ export async function createOrUpdateUrlRedirect(
     const existing = await findUrlRedirectByPath(admin, fromPath);
 
     if (existing) {
+      // 既存のリダイレクトがあり、ターゲットが同じなら何もしない
+      if (existing.target === toUrl) {
+        console.log(`[llmo-files] redirect ${fromPath} already points to ${toUrl}, skipping`);
+        return { ok: true, id: existing.id };
+      }
+      console.log(`[llmo-files] updating redirect ${fromPath}: ${existing.target} → ${toUrl}`);
       const mutation = `#graphql
         mutation urlRedirectUpdate($id: ID!, $urlRedirect: UrlRedirectInput!) {
           urlRedirectUpdate(id: $id, urlRedirect: $urlRedirect) {
@@ -599,6 +605,7 @@ export async function createOrUpdateUrlRedirect(
       return { ok: true, id: existing.id };
     }
 
+    console.log(`[llmo-files] creating new redirect ${fromPath} → ${toUrl}`);
     const mutation = `#graphql
       mutation urlRedirectCreate($urlRedirect: UrlRedirectInput!) {
         urlRedirectCreate(urlRedirect: $urlRedirect) {
@@ -648,9 +655,11 @@ async function findUrlRedirectByPath(
   admin: AdminApiContext,
   path: string
 ): Promise<{ id: string; target: string } | null> {
+  // クエリ構文で特殊文字を含むパスを検索するため、引用符でエスケープ
+  const escapedPath = `"${path.replace(/"/g, '\\"')}"`;
   const query = `#graphql
     query findRedirect($query: String!) {
-      urlRedirects(first: 1, query: $query) {
+      urlRedirects(first: 10, query: $query) {
         edges {
           node {
             id
@@ -663,7 +672,7 @@ async function findUrlRedirectByPath(
   `;
   try {
     const res = await admin.graphql(query, {
-      variables: { query: `path:${path}` },
+      variables: { query: `path:${escapedPath}` },
     });
     const json = (await res.json()) as {
       data?: {
@@ -677,8 +686,11 @@ async function findUrlRedirectByPath(
       console.error("[llmo-files] findUrlRedirectByPath GraphQL errors:", JSON.stringify(json.errors));
       return null;
     }
-    const node = json.data?.urlRedirects?.edges?.[0]?.node;
-    if (node && node.path === path) {
+    // 完全一致するパスを探す
+    const edges = json.data?.urlRedirects?.edges ?? [];
+    console.log(`[llmo-files] findUrlRedirectByPath path=${path} found ${edges.length} results:`, edges.map(e => e.node.path));
+    const node = edges.find((e) => e.node.path === path)?.node;
+    if (node) {
       return { id: node.id, target: node.target };
     }
     return null;

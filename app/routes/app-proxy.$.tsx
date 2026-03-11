@@ -123,6 +123,22 @@ ${urls
   }
 
   if (path === ".ai-context" && settings?.aiContextFileUrl) {
+    // CDN はドット始まりファイルを attachment で返すため、直接コンテンツをサーブ
+    try {
+      const cdnRes = await fetch(settings.aiContextFileUrl);
+      if (cdnRes.ok) {
+        const content = await cdnRes.text();
+        return new Response(content, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "public, max-age=3600",
+          },
+        });
+      }
+    } catch {
+      // fallback to redirect
+    }
     return redirect(settings.aiContextFileUrl, 302);
   }
 
