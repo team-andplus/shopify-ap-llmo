@@ -32,7 +32,7 @@ function sortByCount(entries: [string, number][]): [string, number][] {
 
 export default function AccessLogPage() {
   const { aggregates, t } = useLoaderData<typeof loader>();
-  const { total, byShop, byPath, byDate, recent } = aggregates;
+  const { total, byShop, byPath, byDate, recent, aiBotTotal, aiBotByService, aiBotByBot, aiBotRecent } = aggregates;
 
   return (
     <div style={{ padding: "1.5rem 1rem", maxWidth: "56rem" }}>
@@ -43,6 +43,98 @@ export default function AccessLogPage() {
       </p>
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>{t.accessLogTitle}</h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1.5rem" }}>{t.accessLogDesc}</p>
+
+      {/* AI ボットセクション（目立つように先頭に配置） */}
+      <div
+        style={{
+          backgroundColor: aiBotTotal > 0 ? "#e8f5e9" : "#f5f5f5",
+          border: aiBotTotal > 0 ? "2px solid #4caf50" : "1px solid #e0e0e0",
+          borderRadius: "8px",
+          padding: "1rem 1.25rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <h2 style={{ fontSize: "1.25rem", marginBottom: "0.5rem", color: aiBotTotal > 0 ? "#2e7d32" : "#666" }}>
+          {aiBotTotal > 0 ? `🤖 ${t.aiBotHighlight}` : "🤖 " + t.aiBotAccessTitle}
+        </h2>
+        <p style={{ color: "#666", fontSize: "0.875rem", marginBottom: "1rem" }}>{t.aiBotAccessDesc}</p>
+
+        {aiBotTotal === 0 ? (
+          <p style={{ color: "#888", fontSize: "0.875rem" }}>{t.aiBotNoData}</p>
+        ) : (
+          <>
+            <p style={{ fontSize: "1.125rem", marginBottom: "1rem", fontWeight: "bold", color: "#2e7d32" }}>
+              {t.aiBotTotalRequests}: {aiBotTotal}
+            </p>
+
+            <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>{t.aiBotByService}</h3>
+                <table style={{ ...tableStyle, maxWidth: "20rem" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>{t.aiBotService}</th>
+                      <th style={thStyle}>{t.accessLogCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortByCount(Object.entries(aiBotByService)).map(([service, count]) => (
+                      <tr key={service}>
+                        <td style={thTdStyle}>{service}</td>
+                        <td style={thTdStyle}>{count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>{t.aiBotByBot}</h3>
+                <table style={{ ...tableStyle, maxWidth: "20rem" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>{t.aiBotName}</th>
+                      <th style={thStyle}>{t.accessLogCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortByCount(Object.entries(aiBotByBot)).map(([bot, count]) => (
+                      <tr key={bot}>
+                        <td style={thTdStyle}>{bot}</td>
+                        <td style={thTdStyle}>{count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>{t.aiBotRecentAccess}</h3>
+            <table style={{ ...tableStyle, maxWidth: "100%" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>{t.accessLogDate}</th>
+                  <th style={thStyle}>{t.aiBotService}</th>
+                  <th style={thStyle}>{t.aiBotName}</th>
+                  <th style={thStyle}>{t.accessLogPath}</th>
+                  <th style={thStyle}>{t.accessLogIp}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aiBotRecent.slice(0, 20).map((row, i) => (
+                  <tr key={i}>
+                    <td style={thTdStyle}>{row.t}</td>
+                    <td style={thTdStyle}>{row.botService}</td>
+                    <td style={thTdStyle}>{row.botName}</td>
+                    <td style={thTdStyle}>{row.path}</td>
+                    <td style={thTdStyle}>{row.ip || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
 
       {total === 0 ? (
         <p style={{ color: "#6d7175" }}>{t.accessLogNoData}</p>
@@ -121,13 +213,17 @@ export default function AccessLogPage() {
             </thead>
             <tbody>
               {recent.map((row, i) => (
-                <tr key={i}>
+                <tr key={i} style={row.aiBot ? { backgroundColor: "#e8f5e9" } : undefined}>
                   <td style={thTdStyle}>{row.t}</td>
                   <td style={thTdStyle}>{row.shop}</td>
                   <td style={thTdStyle}>{row.path}</td>
                   <td style={thTdStyle}>{row.ip || "—"}</td>
                   <td style={{ ...thTdStyle, maxWidth: "16rem", overflow: "hidden", textOverflow: "ellipsis" }} title={row.ua}>
-                    {row.ua || "—"}
+                    {row.aiBot ? (
+                      <span style={{ color: "#2e7d32", fontWeight: "bold" }}>🤖 {row.aiBot.name}</span>
+                    ) : (
+                      row.ua || "—"
+                    )}
                   </td>
                 </tr>
               ))}
