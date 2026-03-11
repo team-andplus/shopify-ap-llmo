@@ -27,7 +27,7 @@ api_version = "2026-01"
 [access_scopes]
 # stagedUploadsCreate は read_files + write_files の両方が必要
 # app_proxy で llms.txt 等をストア URL からリダイレクトするために必要
-scopes = "read_products,read_files,write_files,write_app_proxy"
+scopes = "read_products,read_files,write_files,write_app_proxy,read_locations"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 

@@ -160,56 +160,67 @@ async function fetchCollectionsWithProducts(admin: AdminApiContext): Promise<Col
 }
 
 async function fetchLocations(admin: AdminApiContext): Promise<LocationData[]> {
-  const query = `#graphql
-    query getLocations($first: Int!) {
-      locations(first: $first) {
-        edges {
-          node {
-            name
-            address {
-              address1
-              address2
-              city
-              province
-              country
-              zip
+  try {
+    const query = `#graphql
+      query getLocations($first: Int!) {
+        locations(first: $first) {
+          edges {
+            node {
+              name
+              address {
+                address1
+                address2
+                city
+                province
+                country
+                zip
+              }
             }
           }
         }
       }
-    }
-  `;
-  const res = await admin.graphql(query, { variables: { first: MAX_LOCATIONS } });
-  const json = (await res.json()) as {
-    data?: {
-      locations?: {
-        edges: Array<{
-          node: {
-            name: string;
-            address?: {
-              address1?: string;
-              address2?: string;
-              city?: string;
-              province?: string;
-              country?: string;
-              zip?: string;
+    `;
+    const res = await admin.graphql(query, { variables: { first: MAX_LOCATIONS } });
+    const json = (await res.json()) as {
+      data?: {
+        locations?: {
+          edges: Array<{
+            node: {
+              name: string;
+              address?: {
+                address1?: string;
+                address2?: string;
+                city?: string;
+                province?: string;
+                country?: string;
+                zip?: string;
+              };
             };
-          };
-        }>;
+          }>;
+        };
       };
+      errors?: Array<{ message: string }>;
     };
-  };
 
-  const locations = json.data?.locations?.edges ?? [];
-  return locations.map((edge) => {
-    const loc = edge.node;
-    const addr = loc.address;
-    const parts = [addr?.address1, addr?.address2, addr?.city, addr?.province, addr?.zip, addr?.country].filter(Boolean);
-    return {
-      name: loc.name,
-      address: parts.join(", "),
-    };
-  });
+    if (json.errors?.length) {
+      console.warn("[llmo-full] locations query error (scope missing?):", json.errors[0]?.message);
+      return [];
+    }
+
+    const locations = json.data?.locations?.edges ?? [];
+    return locations.map((edge) => {
+      const loc = edge.node;
+      const addr = loc.address;
+      const parts = [addr?.address1, addr?.address2, addr?.city, addr?.province, addr?.zip, addr?.country].filter(Boolean);
+      return {
+        name: loc.name,
+        address: parts.join(", "),
+      };
+    });
+  } catch (err) {
+    console.warn("[llmo-full] fetchLocations failed:", err);
+    return [];
+  }
 }
 
 async function fetchPolicies(admin: AdminApiContext): Promise<{ shipping: string; refund: string }> {
