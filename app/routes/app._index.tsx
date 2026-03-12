@@ -20,6 +20,7 @@ import { extractAiContextData, formatAiContext } from "../lib/llmo-ai-context.se
 import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
 import { runDailyJobManually } from "../lib/cron.server";
+import { readAndAggregateLlmoAccessLog } from "../lib/llmo-access-log.server";
 
 const MAX_DOCS_AI_ROWS = 10;
 
@@ -121,11 +122,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }).catch(() => {}); // エラーは無視（バックグラウンドで実行）
     }
 
+    // AI Visibility 用: AI ボットアクセス集計（サイドバー表示用）
+    let aiVisibility = { aiBotTotal: 0, aiBotByService: {} as Record<string, number> };
+    try {
+      const logData = await readAndAggregateLlmoAccessLog(shop);
+      aiVisibility = {
+        aiBotTotal: logData.aiBotTotal,
+        aiBotByService: logData.aiBotByService,
+      };
+    } catch {
+      // ログファイルがない場合は空のまま
+    }
+
     return {
       storeUrl,
       locale,
       t: getTranslations(locale),
       trialInfo,
+      aiVisibility,
       settings: settings
         ? {
             siteType: settings.siteType ?? "",
@@ -157,6 +171,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       locale,
       t: getTranslations(locale),
       trialInfo: { hasAccess: true, trialEndsAt: "", isSubscribed: false, isTrialActive: false, daysRemaining: 0 },
+      aiVisibility: { aiBotTotal: 0, aiBotByService: {} as Record<string, number> },
       settings: emptySettings,
       loaderError: message,
     };
@@ -1595,6 +1610,58 @@ export default function AppIndex() {
             </p>
           </section>
         )}
+
+        {/* AI Visibility ウィジェット */}
+        <section
+          style={{
+            ...sectionStyle,
+            background: data.aiVisibility.aiBotTotal > 0 ? "#e8f5e9" : "#f5f5f5",
+            borderLeft: data.aiVisibility.aiBotTotal > 0 ? "4px solid #4caf50" : "4px solid #9e9e9e",
+          }}
+        >
+          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.5rem", color: data.aiVisibility.aiBotTotal > 0 ? "#2e7d32" : "#666" }}>
+            {data.aiVisibility.aiBotTotal > 0 ? "🤖 " : ""}{t.aiVisibilityTitle}
+          </h2>
+          {data.aiVisibility.aiBotTotal > 0 ? (
+            <>
+              <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", color: "#2e7d32", fontWeight: 600 }}>
+                {t.aiVisibilityDesc}
+              </p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <span style={{ fontSize: "2rem", fontWeight: 700, color: "#2e7d32" }}>{data.aiVisibility.aiBotTotal}</span>
+                <span style={{ fontSize: "0.875rem", color: "#666" }}>{t.aiVisitsTotal}</span>
+              </div>
+              {Object.entries(data.aiVisibility.aiBotByService).length > 0 && (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  {Object.entries(data.aiVisibility.aiBotByService)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([service, count]) => (
+                      <div key={service} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "#555", padding: "0.125rem 0" }}>
+                        <span>{service}</span>
+                        <span style={{ fontWeight: 600 }}>{count}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+              <Link
+                to="access-log"
+                style={{ display: "inline-block", fontSize: "0.8125rem", color: "#2e7d32", textDecoration: "underline" }}
+              >
+                {t.viewDetails} →
+              </Link>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.875rem", color: "#666" }}>
+                {t.noAiVisitsYet}
+              </p>
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#999" }}>
+                {t.noAiVisitsHint}
+              </p>
+            </>
+          )}
+        </section>
 
         <section style={sectionStyle}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarStatusTitle}</h2>

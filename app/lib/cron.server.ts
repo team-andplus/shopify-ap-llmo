@@ -234,8 +234,8 @@ async function sendWeeklyReports(): Promise<void> {
       await sendEmail({
         to: store.reportEmail!,
         subject: isJa
-          ? `[AP LLMO] 週次 AI アクセスレポート - ${store.shop}`
-          : `[AP LLMO] Weekly AI Access Report - ${store.shop}`,
+          ? `🤖 AI があなたのストアを訪問しました - ${store.shop}`
+          : `🤖 AI systems visited your store this week - ${store.shop}`,
         html,
       });
 
