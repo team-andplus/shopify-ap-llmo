@@ -1,6 +1,7 @@
 /**
- * 定時処理: llms.full.txt の自動再生成 + ログローテーション
- * - 毎日 JST 3:00 AM (UTC 18:00) に実行
+ * 定時処理: llms.full.txt の自動再生成 + ログローテーション + 週次レポート
+ * - 毎日 JST 2:00 AM (UTC 17:00) に実行
+ * - 毎週月曜 JST 9:00 AM (UTC 0:00) に週次レポートを送信
  * - PM2 で常駐させることで cron が動作する
  */
 
@@ -11,6 +12,8 @@ import prisma from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { fetchStoreData, formatStoreDataAsText } from "./llmo-full.server";
 import { createOrUpdateLlmsFullTxtFile } from "./llmo-files.server";
+import { sendEmail } from "./email.server";
+import { AI_BOT_PATTERNS } from "./llmo-access-log.server";
 
 const LOG_DIR = "log";
 const LOG_FILE = "llmo-access.log";
@@ -40,7 +43,19 @@ export function initCronJobs(): void {
     }
   });
 
+  // 毎週月曜 UTC 0:00 (JST 9:00 AM) に週次レポートを送信
+  cron.schedule("0 0 * * 1", async () => {
+    console.log("[cron] Weekly report job started at", new Date().toISOString());
+    try {
+      await sendWeeklyReports();
+      console.log("[cron] Weekly report job completed");
+    } catch (err) {
+      console.error("[cron] Weekly report job failed:", err);
+    }
+  });
+
   console.log("[cron] Scheduled daily job at UTC 17:00 (JST 2:00 AM)");
+  console.log("[cron] Scheduled weekly report at UTC 0:00 Monday (JST 9:00 AM)");
 }
 
 /**
@@ -145,4 +160,185 @@ export async function runDailyJobManually(): Promise<{ success: boolean; message
     console.error("[cron] Manual job failed:", err);
     return { success: false, message };
   }
+}
+
+// ===============================
+// 週次レポート
+// ===============================
+
+interface LogEntry {
+  timestamp: string;
+  shop: string;
+  path: string;
+  userAgent: string;
+  ip?: string;
+}
+
+interface WeeklyStats {
+  totalAccess: number;
+  aiBotAccess: number;
+  byBot: Record<string, number>;
+  byPath: Record<string, number>;
+}
+
+/**
+ * 週次レポートを全ストアに送信する
+ */
+async function sendWeeklyReports(): Promise<void> {
+  console.log("[cron] Sending weekly reports...");
+
+  // レポート有効なストアを取得
+  const stores = await prisma.llmoSettings.findMany({
+    where: { reportEnabled: true, reportEmail: { not: null } },
+    select: { shop: true, reportEmail: true },
+  });
+
+  if (stores.length === 0) {
+    console.log("[cron] No stores with report enabled");
+    return;
+  }
+
+  // ログファイルを読み込み
+  const logPath = join(process.cwd(), LOG_DIR, LOG_FILE);
+  let logEntries: LogEntry[] = [];
+
+  try {
+    const raw = await readFile(logPath, "utf-8");
+    const lines = raw.split("\n").filter((line) => line.trim());
+    logEntries = lines.map((line) => {
+      try {
+        return JSON.parse(line) as LogEntry;
+      } catch {
+        return null;
+      }
+    }).filter((e): e is LogEntry => e !== null);
+  } catch {
+    console.log("[cron] Log file not found, skipping reports");
+    return;
+  }
+
+  // 過去7日間のエントリを抽出
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  for (const store of stores) {
+    try {
+      const storeEntries = logEntries.filter(
+        (e) => e.shop === store.shop && new Date(e.timestamp) >= weekAgo
+      );
+
+      const stats = aggregateStats(storeEntries);
+      const html = generateReportHtml(store.shop, stats);
+
+      await sendEmail({
+        to: store.reportEmail!,
+        subject: `[AP LLMO] 週次 AI アクセスレポート - ${store.shop}`,
+        html,
+      });
+
+      console.log(`[cron] Sent weekly report to ${store.reportEmail} for ${store.shop}`);
+    } catch (err) {
+      console.error(`[cron] Failed to send report for ${store.shop}:`, err);
+    }
+  }
+}
+
+/**
+ * ログエントリを集計する
+ */
+function aggregateStats(entries: LogEntry[]): WeeklyStats {
+  const stats: WeeklyStats = {
+    totalAccess: entries.length,
+    aiBotAccess: 0,
+    byBot: {},
+    byPath: {},
+  };
+
+  for (const entry of entries) {
+    // パス別集計
+    stats.byPath[entry.path] = (stats.byPath[entry.path] || 0) + 1;
+
+    // AI Bot 判定
+    for (const bot of AI_BOT_PATTERNS) {
+      if (entry.userAgent.includes(bot.pattern)) {
+        stats.aiBotAccess++;
+        stats.byBot[bot.name] = (stats.byBot[bot.name] || 0) + 1;
+        break;
+      }
+    }
+  }
+
+  return stats;
+}
+
+/**
+ * レポート HTML を生成する
+ */
+function generateReportHtml(shop: string, stats: WeeklyStats): string {
+  const botRows = Object.entries(stats.byBot)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => `<tr><td>${name}</td><td style="text-align:right">${count}</td></tr>`)
+    .join("");
+
+  const pathRows = Object.entries(stats.byPath)
+    .sort((a, b) => b[1] - a[1])
+    .map(([path, count]) => `<tr><td>${path}</td><td style="text-align:right">${count}</td></tr>`)
+    .join("");
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h1 { color: #1a1a2e; font-size: 1.5rem; border-bottom: 2px solid #4a4e69; padding-bottom: 0.5rem; }
+    h2 { color: #4a4e69; font-size: 1.1rem; margin-top: 1.5rem; }
+    .summary { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+    .summary-item { display: flex; justify-content: space-between; padding: 0.25rem 0; }
+    .summary-value { font-weight: bold; color: #1a1a2e; }
+    .highlight { color: #2ecc71; }
+    table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>📊 週次 AI アクセスレポート</h1>
+  <p><strong>ストア:</strong> ${shop}</p>
+  <p><strong>期間:</strong> 過去7日間</p>
+
+  <div class="summary">
+    <div class="summary-item">
+      <span>総アクセス数:</span>
+      <span class="summary-value">${stats.totalAccess}</span>
+    </div>
+    <div class="summary-item">
+      <span>AI Bot アクセス:</span>
+      <span class="summary-value ${stats.aiBotAccess > 0 ? 'highlight' : ''}">${stats.aiBotAccess}</span>
+    </div>
+  </div>
+
+  ${Object.keys(stats.byBot).length > 0 ? `
+  <h2>🤖 AI Bot 別アクセス</h2>
+  <table>
+    <thead><tr><th>Bot 名</th><th style="text-align:right">回数</th></tr></thead>
+    <tbody>${botRows}</tbody>
+  </table>
+  ` : '<p>AI Bot からのアクセスはありませんでした。</p>'}
+
+  <h2>📄 ファイル別アクセス</h2>
+  <table>
+    <thead><tr><th>パス</th><th style="text-align:right">回数</th></tr></thead>
+    <tbody>${pathRows || '<tr><td colspan="2">アクセスなし</td></tr>'}</tbody>
+  </table>
+
+  <div class="footer">
+    <p>このメールは AP LLMO (AI 文書管理アプリ) から自動送信されています。</p>
+    <p>レポート設定はアプリ管理画面から変更できます。</p>
+  </div>
+</body>
+</html>
+  `.trim();
 }

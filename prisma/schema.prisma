@@ -51,6 +51,8 @@ model LlmoSettings {
   aiContextGeneratedAt   DateTime? // .ai-context の最終生成日時
   docsAiFiles            String?   // JSON: [{ filename, content, fileId?, fileUrl? }] 最大10。docs/ai 用 md を Files に設置
   openaiApiKey           String?   // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
+  reportEmail            String?   // 週次レポートの送信先メールアドレス
+  reportEnabled          Boolean   @default(false) // 週次レポートの有効/無効
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 

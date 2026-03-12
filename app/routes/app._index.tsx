@@ -56,6 +56,8 @@ const emptySettings = {
   aiContextGeneratedAt: null as string | null,
   docsAiFiles: [] as DocsAiFileEntry[],
   openaiApiKeySet: false,
+  reportEmail: "",
+  reportEnabled: false,
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -83,6 +85,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             aiContextFileUrl: true,
             aiContextGeneratedAt: true,
             docsAiFiles: true,
+            reportEmail: true,
+            reportEnabled: true,
           },
         })
       : null;
@@ -124,6 +128,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             aiContextGeneratedAt: settings.aiContextGeneratedAt?.toISOString() ?? null,
             docsAiFiles,
             openaiApiKeySet,
+            reportEmail: settings.reportEmail ?? "",
+            reportEnabled: settings.reportEnabled ?? false,
           }
         : emptySettings,
       loaderError: null as string | null,
@@ -686,6 +692,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  // レポート設定を保存
+  if (intent === "saveReportSettings") {
+    try {
+      const reportEmail = (formData.get("reportEmail") as string)?.trim() ?? "";
+      const reportEnabled = formData.get("reportEnabled") === "true";
+
+      await prisma.llmoSettings.upsert({
+        where: { shop },
+        create: { shop, reportEmail: reportEmail || null, reportEnabled },
+        update: { reportEmail: reportEmail || null, reportEnabled },
+      });
+
+      return Response.json({ ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] saveReportSettings error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 };
 
@@ -746,6 +772,7 @@ export default function AppIndex() {
   const isRefiningAiContext = fetcher.state !== "idle" && lastIntent === "refineAiContext";
   const isSavingAiContext = fetcher.state !== "idle" && lastIntent === "saveAiContext";
   const isRunningCronJob = fetcher.state !== "idle" && lastIntent === "runCronJob";
+  const isSavingReport = fetcher.state !== "idle" && lastIntent === "saveReportSettings";
   const fileResult =
     lastIntent === "saveFile"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
@@ -762,6 +789,14 @@ export default function AppIndex() {
     lastIntent === "runCronJob"
       ? (fetcher.data as { ok?: boolean; error?: string; message?: string } | undefined)
       : null;
+  const reportResult =
+    lastIntent === "saveReportSettings"
+      ? (fetcher.data as { ok?: boolean; error?: string } | undefined)
+      : null;
+
+  // Weekly report settings state
+  const [reportEmail, setReportEmail] = useState(data.settings.reportEmail);
+  const [reportEnabled, setReportEnabled] = useState(data.settings.reportEnabled);
   // 400 などで intent が消えてもエラー本文を表示（generateLlmsTxt は上記ブロックで表示するので除外）
   const anyFetcherError =
     fetcher.state === "idle" &&
@@ -1526,6 +1561,80 @@ export default function AppIndex() {
             <li>{t.setup2}</li>
             <li>{t.setup3}</li>
           </ol>
+        </section>
+
+        <section style={{ ...sectionStyle, background: "#f0fdf4", borderLeft: "3px solid #22c55e" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            {data.locale === "ja" ? "週次レポート" : "Weekly Report"}
+          </h2>
+          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
+            {data.locale === "ja"
+              ? "AI Bot のアクセス状況をメールで受け取れます。毎週月曜 9:00 (JST) に送信されます。"
+              : "Receive AI bot access reports via email. Sent every Monday at 9:00 AM (JST)."}
+          </p>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={reportEnabled}
+                onChange={(e) => setReportEnabled(e.target.checked)}
+                style={{ width: "1rem", height: "1rem" }}
+              />
+              {data.locale === "ja" ? "週次レポートを受け取る" : "Receive weekly report"}
+            </label>
+          </div>
+          {reportEnabled && (
+            <div style={{ marginBottom: "0.75rem" }}>
+              <label style={{ fontSize: "0.8125rem", color: "#6d7175" }}>
+                {data.locale === "ja" ? "送信先メールアドレス" : "Email address"}
+              </label>
+              <input
+                type="email"
+                value={reportEmail}
+                onChange={(e) => setReportEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={{
+                  ...inputStyle,
+                  maxWidth: "280px",
+                  marginTop: "0.25rem",
+                }}
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={isSavingReport}
+            onClick={() => {
+              fetcher.submit(
+                { intent: "saveReportSettings", reportEmail, reportEnabled: String(reportEnabled) },
+                { method: "post" }
+              );
+            }}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "6px",
+              border: "1px solid #22c55e",
+              background: isSavingReport ? "#dcfce7" : "#fff",
+              color: "#166534",
+              cursor: isSavingReport ? "wait" : "pointer",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+            }}
+          >
+            {isSavingReport
+              ? (data.locale === "ja" ? "保存中..." : "Saving...")
+              : (data.locale === "ja" ? "設定を保存" : "Save Settings")}
+          </button>
+          {reportResult?.ok && (
+            <p style={{ marginTop: "0.5rem", color: "#15803d", fontSize: "0.8125rem" }}>
+              ✓ {data.locale === "ja" ? "保存しました" : "Saved"}
+            </p>
+          )}
+          {reportResult && !reportResult.ok && (
+            <p style={{ marginTop: "0.5rem", color: "#b91c1c", fontSize: "0.8125rem" }}>
+              {t.error}: {reportResult.error}
+            </p>
+          )}
         </section>
 
         <section style={{ ...sectionStyle, background: "#fef9e7", borderLeft: "3px solid #f59e0b" }}>

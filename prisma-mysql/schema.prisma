@@ -50,6 +50,8 @@ model LlmoSettings {
   aiContextGeneratedAt DateTime?
   docsAiFiles          String?  @db.Text
   openaiApiKey         String?  @db.Text
+  reportEmail          String?
+  reportEnabled        Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
