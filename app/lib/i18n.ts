@@ -8,7 +8,8 @@ export type Locale = "ja" | "en";
 export const translations = {
   ja: {
     appTitle: "AP LLMO",
-    appDesc: "ストアの <head> に、LLM・エージェント向け文書へのリンクを追加するアプリです。",
+    appDesc: "AI 検索（ChatGPT、Perplexity など）にストアを最適化するアプリです。",
+    appDescSub: "AI があなたのストアを正しく理解できるようにします。コーディング不要。",
     philosophyTitle: "このアプリの思想",
     philosophyBody:
       "AI に対する私たちの思想は「嘘をつかせない」に集約されます。事実・証拠を優先し、誇張や捏造を避けることで、LLM がストア情報を扱うときの解釈と生成を適切に導きます。",
@@ -171,10 +172,15 @@ export const translations = {
     viewDetails: "詳細を見る",
     noAiVisitsYet: "AI アクセスはまだありません",
     noAiVisitsHint: "llms.txt を設置すると AI クローラーが訪問します",
+    // Generated Files
+    generatedFilesTitle: "生成されたファイル",
+    generatedFilesDesc: "AI がストアを理解するためのファイル群",
+    fileNotGenerated: "未生成",
   },
   en: {
     appTitle: "AP LLMO",
-    appDesc: "This app adds links to LLM- and agent-oriented documents in your store's ",
+    appDesc: "Optimize your store for AI search (ChatGPT, Perplexity, etc.)",
+    appDescSub: "Help AI understand your Shopify store. No coding required.",
     philosophyTitle: "This app's philosophy",
     philosophyBody:
       'Our philosophy toward AI is "don\'t let it tell lies": we prioritize facts and evidence and avoid exaggeration or fabrication, so that LLMs interpret and generate store information appropriately.',
@@ -338,6 +344,10 @@ export const translations = {
     viewDetails: "View details",
     noAiVisitsYet: "No AI visits yet",
     noAiVisitsHint: "Set up llms.txt and AI crawlers will discover your store",
+    // Generated Files
+    generatedFilesTitle: "Generated Files",
+    generatedFilesDesc: "Files for AI to understand your store",
+    fileNotGenerated: "Not generated",
   },
 } as const;
 

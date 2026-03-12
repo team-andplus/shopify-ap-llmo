@@ -1013,8 +1013,11 @@ export default function AppIndex() {
           <Link to="access-log" style={{ color: "var(--p-color-text-secondary, #6d7175)" }}>{t.accessLogNav}</Link>
         </span>
       </h1>
-      <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1rem" }}>
-        {data.locale === "ja" ? "ストアの " : ""}<code>&lt;head&gt;</code>{data.locale === "ja" ? " に、LLM・エージェント向け文書へのリンクを追加するアプリです。" : <> {t.appDesc}<code>&lt;head&gt;</code>.</>}
+      <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "0.25rem" }}>
+        {t.appDesc}
+      </p>
+      <p style={{ color: "#888", fontSize: "0.8125rem", marginBottom: "1rem" }}>
+        {t.appDescSub}
       </p>
 
       {/* このアプリの思想 */}
@@ -1669,6 +1672,60 @@ export default function AppIndex() {
             <li>{llmsTxtSet ? t.statusLlmsTxtSet : t.statusLlmsTxtNotSet}</li>
             <li>{t.statusDocsAiCount.replace("{count}", String(docsAiCount))}</li>
           </ul>
+        </section>
+
+        {/* Generated Files - URL まとめ */}
+        <section style={{ ...sectionStyle, background: "#f0f9ff", borderLeft: "3px solid #3b82f6" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.generatedFilesTitle}</h2>
+          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#6d7175" }}>{t.generatedFilesDesc}</p>
+          <div style={{ fontSize: "0.8125rem", lineHeight: 1.8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600 }}>llms.txt</span>
+              {data.settings.llmsTxtFileUrl ? (
+                <a href={`${data.storeUrl}/llms.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
+                  /llms.txt ↗
+                </a>
+              ) : (
+                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600 }}>llms.full.txt</span>
+              {data.settings.llmsFullTxtFileUrl ? (
+                <a href={`${data.storeUrl}/llms.full.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
+                  /llms.full.txt ↗
+                </a>
+              ) : (
+                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600 }}>.ai-context</span>
+              {data.settings.aiContextFileUrl ? (
+                <a href={`${data.storeUrl}/.ai-context`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
+                  /.ai-context ↗
+                </a>
+              ) : (
+                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600 }}>docs/ai</span>
+              {docsAiCount > 0 ? (
+                <a href={`${data.storeUrl}/docs/ai/README.md`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
+                  /docs/ai/ ↗
+                </a>
+              ) : (
+                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600 }}>sitemap-ai.xml</span>
+              <a href={`${data.storeUrl}/sitemap-ai.xml`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
+                /sitemap-ai.xml ↗
+              </a>
+            </div>
+          </div>
         </section>
 
         <section style={sectionStyle}>
