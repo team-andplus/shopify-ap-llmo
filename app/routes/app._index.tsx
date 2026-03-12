@@ -19,6 +19,7 @@ import { fetchStoreData, formatStoreDataAsText } from "../lib/llmo-full.server";
 import { extractAiContextData, formatAiContext } from "../lib/llmo-ai-context.server";
 import { encrypt } from "../lib/encrypt.server";
 import { getTranslations, getLocaleFromRequest } from "../lib/i18n";
+import { runDailyJobManually } from "../lib/cron.server";
 
 const MAX_DOCS_AI_ROWS = 10;
 
@@ -673,6 +674,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  // 定時処理を手動実行
+  if (intent === "runCronJob") {
+    try {
+      const result = await runDailyJobManually();
+      return Response.json({ ok: result.success, message: result.message });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] runCronJob error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 };
 
@@ -732,6 +745,7 @@ export default function AppIndex() {
   const isGeneratingAiContext = fetcher.state !== "idle" && lastIntent === "generateAiContext";
   const isRefiningAiContext = fetcher.state !== "idle" && lastIntent === "refineAiContext";
   const isSavingAiContext = fetcher.state !== "idle" && lastIntent === "saveAiContext";
+  const isRunningCronJob = fetcher.state !== "idle" && lastIntent === "runCronJob";
   const fileResult =
     lastIntent === "saveFile"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
@@ -743,6 +757,10 @@ export default function AppIndex() {
   const aiContextSaveResult =
     lastIntent === "saveAiContext"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
+      : null;
+  const cronJobResult =
+    lastIntent === "runCronJob"
+      ? (fetcher.data as { ok?: boolean; error?: string; message?: string } | undefined)
       : null;
   // 400 などで intent が消えてもエラー本文を表示（generateLlmsTxt は上記ブロックで表示するので除外）
   const anyFetcherError =
@@ -1508,6 +1526,54 @@ export default function AppIndex() {
             <li>{t.setup2}</li>
             <li>{t.setup3}</li>
           </ol>
+        </section>
+
+        <section style={{ ...sectionStyle, background: "#fef9e7", borderLeft: "3px solid #f59e0b" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            {data.locale === "ja" ? "開発者向け" : "Developer"}
+          </h2>
+          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
+            {data.locale === "ja"
+              ? "定時処理（llms.full.txt 再生成 + ログローテーション）を手動で実行します。"
+              : "Manually run the daily job (regenerate llms.full.txt + log rotation)."}
+          </p>
+          <button
+            type="button"
+            disabled={isRunningCronJob}
+            onClick={() => {
+              const confirmed = window.confirm(
+                data.locale === "ja"
+                  ? "定時処理を今すぐ実行しますか？\n\n全ストアの llms.full.txt が再生成されます。"
+                  : "Run the daily job now?\n\nThis will regenerate llms.full.txt for all stores."
+              );
+              if (!confirmed) return;
+              fetcher.submit({ intent: "runCronJob" }, { method: "post" });
+            }}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "6px",
+              border: "1px solid #f59e0b",
+              background: isRunningCronJob ? "#fef3c7" : "#fff",
+              color: "#92400e",
+              cursor: isRunningCronJob ? "wait" : "pointer",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+            }}
+          >
+            {isRunningCronJob
+              ? (data.locale === "ja" ? "実行中..." : "Running...")
+              : (data.locale === "ja" ? "定時処理を実行" : "Run Daily Job")}
+          </button>
+          {cronJobResult?.ok && (
+            <p style={{ marginTop: "0.5rem", color: "#15803d", fontSize: "0.8125rem" }}>
+              ✓ {data.locale === "ja" ? "完了しました" : "Completed"}
+            </p>
+          )}
+          {cronJobResult && !cronJobResult.ok && (
+            <p style={{ marginTop: "0.5rem", color: "#b91c1c", fontSize: "0.8125rem" }}>
+              {t.error}: {cronJobResult.error || cronJobResult.message}
+            </p>
+          )}
         </section>
       </aside>
     </div>
