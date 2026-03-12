@@ -729,16 +729,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (!testEmail) {
         return Response.json({ ok: false, error: "Email address required" }, { status: 400 });
       }
+      const locale = getLocaleFromRequest(request);
+      const isJa = locale === "ja";
       const result = await sendEmail({
         to: testEmail,
-        subject: "[AP LLMO] テストメール",
-        html: `
-          <h1>テストメール</h1>
-          <p>AP LLMO からのメール送信テストです。</p>
-          <p>このメールが届いていれば、SMTP 設定は正常です。</p>
-          <p>Store: ${shop}</p>
-          <p>Time: ${new Date().toISOString()}</p>
-        `,
+        subject: isJa ? "[AP LLMO] テストメール" : "[AP LLMO] Test Email",
+        html: isJa
+          ? `
+            <h1>テストメール</h1>
+            <p>AP LLMO からのメール送信テストです。</p>
+            <p>このメールが届いていれば、SMTP 設定は正常です。</p>
+            <p>Store: ${shop}</p>
+            <p>Time: ${new Date().toISOString()}</p>
+          `
+          : `
+            <h1>Test Email</h1>
+            <p>This is a test email from AP LLMO.</p>
+            <p>If you received this email, your SMTP settings are working correctly.</p>
+            <p>Store: ${shop}</p>
+            <p>Time: ${new Date().toISOString()}</p>
+          `,
       });
       return Response.json({ ok: result.success, error: result.error });
     } catch (err) {
