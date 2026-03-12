@@ -59,10 +59,10 @@ export async function getBillingStatus(graphql: Graphql): Promise<BillingStatus>
   };
 }
 
-/** AP LLMO Pro プラン: $15/月 */
+/** AP LLMO Pro プラン: $20/月 */
 export const DEFAULT_PLAN = {
   name: "AP LLMO Pro",
-  price: { amount: "15.00", currencyCode: "USD" },
+  price: { amount: "20.00", currencyCode: "USD" },
   interval: "EVERY_30_DAYS" as const,
   trialDays: 7,
 };
