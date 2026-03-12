@@ -108,6 +108,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const docsAiFiles = parseDocsAiFromSettings(settings?.docsAiFiles ?? null);
 
+    // ユーザーの locale を DB に保存（週次レポートで使用）
+    if (shop) {
+      prisma.llmoSettings.upsert({
+        where: { shop },
+        create: { shop, locale },
+        update: { locale },
+      }).catch(() => {}); // エラーは無視（バックグラウンドで実行）
+    }
+
     return {
       storeUrl,
       locale,

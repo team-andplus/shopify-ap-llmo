@@ -53,6 +53,7 @@ model LlmoSettings {
   openaiApiKey           String?   // 暗号化して保存。OpenAI API 呼び出し用（ユーザー設定）
   reportEmail            String?   // 週次レポートの送信先メールアドレス
   reportEnabled          Boolean   @default(false) // 週次レポートの有効/無効
+  locale                 String?   // ユーザーの言語設定（ja / en）
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 

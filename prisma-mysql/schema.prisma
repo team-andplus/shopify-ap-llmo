@@ -52,6 +52,7 @@ model LlmoSettings {
   openaiApiKey         String?  @db.Text
   reportEmail          String?
   reportEnabled        Boolean  @default(false)
+  locale               String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

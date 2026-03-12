@@ -190,7 +190,7 @@ async function sendWeeklyReports(): Promise<void> {
   // レポート有効なストアを取得
   const stores = await prisma.llmoSettings.findMany({
     where: { reportEnabled: true, reportEmail: { not: null } },
-    select: { shop: true, reportEmail: true },
+    select: { shop: true, reportEmail: true, locale: true },
   });
 
   if (stores.length === 0) {
@@ -228,11 +228,14 @@ async function sendWeeklyReports(): Promise<void> {
       );
 
       const stats = aggregateStats(storeEntries);
-      const html = generateReportHtml(store.shop, stats);
+      const isJa = store.locale === "ja";
+      const html = generateReportHtml(store.shop, stats, isJa);
 
       await sendEmail({
         to: store.reportEmail!,
-        subject: `[AP LLMO] 週次 AI アクセスレポート - ${store.shop}`,
+        subject: isJa
+          ? `[AP LLMO] 週次 AI アクセスレポート - ${store.shop}`
+          : `[AP LLMO] Weekly AI Access Report - ${store.shop}`,
         html,
       });
 
@@ -274,7 +277,41 @@ function aggregateStats(entries: LogEntry[]): WeeklyStats {
 /**
  * レポート HTML を生成する
  */
-function generateReportHtml(shop: string, stats: WeeklyStats): string {
+function generateReportHtml(shop: string, stats: WeeklyStats, isJa: boolean): string {
+  const t = isJa ? {
+    title: "📊 週次 AI アクセスレポート",
+    store: "ストア",
+    period: "期間",
+    last7days: "過去7日間",
+    totalAccess: "総アクセス数",
+    aiBotAccess: "AI Bot アクセス",
+    aiBotTitle: "🤖 AI Bot 別アクセス",
+    botName: "Bot 名",
+    count: "回数",
+    noAiBotAccess: "AI Bot からのアクセスはありませんでした。",
+    fileAccessTitle: "📄 ファイル別アクセス",
+    path: "パス",
+    noAccess: "アクセスなし",
+    footer1: "このメールは AP LLMO (AI 文書管理アプリ) から自動送信されています。",
+    footer2: "レポート設定はアプリ管理画面から変更できます。",
+  } : {
+    title: "📊 Weekly AI Access Report",
+    store: "Store",
+    period: "Period",
+    last7days: "Last 7 days",
+    totalAccess: "Total Access",
+    aiBotAccess: "AI Bot Access",
+    aiBotTitle: "🤖 AI Bot Access by Bot",
+    botName: "Bot Name",
+    count: "Count",
+    noAiBotAccess: "No AI bot access during this period.",
+    fileAccessTitle: "📄 Access by File",
+    path: "Path",
+    noAccess: "No access",
+    footer1: "This email is automatically sent by AP LLMO (AI Document Management App).",
+    footer2: "You can change report settings in the app dashboard.",
+  };
+
   const botRows = Object.entries(stats.byBot)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => `<tr><td>${name}</td><td style="text-align:right">${count}</td></tr>`)
@@ -305,38 +342,38 @@ function generateReportHtml(shop: string, stats: WeeklyStats): string {
   </style>
 </head>
 <body>
-  <h1>📊 週次 AI アクセスレポート</h1>
-  <p><strong>ストア:</strong> ${shop}</p>
-  <p><strong>期間:</strong> 過去7日間</p>
+  <h1>${t.title}</h1>
+  <p><strong>${t.store}:</strong> ${shop}</p>
+  <p><strong>${t.period}:</strong> ${t.last7days}</p>
 
   <div class="summary">
     <div class="summary-item">
-      <span>総アクセス数:</span>
+      <span>${t.totalAccess}:</span>
       <span class="summary-value">${stats.totalAccess}</span>
     </div>
     <div class="summary-item">
-      <span>AI Bot アクセス:</span>
+      <span>${t.aiBotAccess}:</span>
       <span class="summary-value ${stats.aiBotAccess > 0 ? 'highlight' : ''}">${stats.aiBotAccess}</span>
     </div>
   </div>
 
   ${Object.keys(stats.byBot).length > 0 ? `
-  <h2>🤖 AI Bot 別アクセス</h2>
+  <h2>${t.aiBotTitle}</h2>
   <table>
-    <thead><tr><th>Bot 名</th><th style="text-align:right">回数</th></tr></thead>
+    <thead><tr><th>${t.botName}</th><th style="text-align:right">${t.count}</th></tr></thead>
     <tbody>${botRows}</tbody>
   </table>
-  ` : '<p>AI Bot からのアクセスはありませんでした。</p>'}
+  ` : `<p>${t.noAiBotAccess}</p>`}
 
-  <h2>📄 ファイル別アクセス</h2>
+  <h2>${t.fileAccessTitle}</h2>
   <table>
-    <thead><tr><th>パス</th><th style="text-align:right">回数</th></tr></thead>
-    <tbody>${pathRows || '<tr><td colspan="2">アクセスなし</td></tr>'}</tbody>
+    <thead><tr><th>${t.path}</th><th style="text-align:right">${t.count}</th></tr></thead>
+    <tbody>${pathRows || `<tr><td colspan="2">${t.noAccess}</td></tr>`}</tbody>
   </table>
 
   <div class="footer">
-    <p>このメールは AP LLMO (AI 文書管理アプリ) から自動送信されています。</p>
-    <p>レポート設定はアプリ管理画面から変更できます。</p>
+    <p>${t.footer1}</p>
+    <p>${t.footer2}</p>
   </div>
 </body>
 </html>
