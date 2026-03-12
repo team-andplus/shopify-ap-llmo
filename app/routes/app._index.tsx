@@ -712,6 +712,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  // テストメール送信
+  if (intent === "testEmail") {
+    try {
+      const { sendEmail } = await import("../lib/email.server");
+      const testEmail = (formData.get("testEmail") as string)?.trim();
+      if (!testEmail) {
+        return Response.json({ ok: false, error: "Email address required" }, { status: 400 });
+      }
+      const result = await sendEmail({
+        to: testEmail,
+        subject: "[AP LLMO] テストメール",
+        html: `
+          <h1>テストメール</h1>
+          <p>AP LLMO からのメール送信テストです。</p>
+          <p>このメールが届いていれば、SMTP 設定は正常です。</p>
+          <p>Store: ${shop}</p>
+          <p>Time: ${new Date().toISOString()}</p>
+        `,
+      });
+      return Response.json({ ok: result.success, error: result.error });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[ap-llmo] testEmail error:", err);
+      return Response.json({ ok: false, error: message }, { status: 500 });
+    }
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 };
 
@@ -773,6 +800,7 @@ export default function AppIndex() {
   const isSavingAiContext = fetcher.state !== "idle" && lastIntent === "saveAiContext";
   const isRunningCronJob = fetcher.state !== "idle" && lastIntent === "runCronJob";
   const isSavingReport = fetcher.state !== "idle" && lastIntent === "saveReportSettings";
+  const isSendingTestEmail = fetcher.state !== "idle" && lastIntent === "testEmail";
   const fileResult =
     lastIntent === "saveFile"
       ? (fetcher.data as { ok?: boolean; error?: string; url?: string } | undefined)
@@ -791,6 +819,10 @@ export default function AppIndex() {
       : null;
   const reportResult =
     lastIntent === "saveReportSettings"
+      ? (fetcher.data as { ok?: boolean; error?: string } | undefined)
+      : null;
+  const testEmailResult =
+    lastIntent === "testEmail"
       ? (fetcher.data as { ok?: boolean; error?: string } | undefined)
       : null;
 
@@ -1634,6 +1666,43 @@ export default function AppIndex() {
             <p style={{ marginTop: "0.5rem", color: "#b91c1c", fontSize: "0.8125rem" }}>
               {t.error}: {reportResult.error}
             </p>
+          )}
+          {reportEnabled && reportEmail && (
+            <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #d1d5db" }}>
+              <button
+                type="button"
+                disabled={isSendingTestEmail}
+                onClick={() => {
+                  fetcher.submit(
+                    { intent: "testEmail", testEmail: reportEmail },
+                    { method: "post" }
+                  );
+                }}
+                style={{
+                  padding: "0.375rem 0.75rem",
+                  borderRadius: "6px",
+                  border: "1px solid #9ca3af",
+                  background: isSendingTestEmail ? "#f3f4f6" : "#fff",
+                  color: "#374151",
+                  cursor: isSendingTestEmail ? "wait" : "pointer",
+                  fontSize: "0.8125rem",
+                }}
+              >
+                {isSendingTestEmail
+                  ? (data.locale === "ja" ? "送信中..." : "Sending...")
+                  : (data.locale === "ja" ? "テストメール送信" : "Send Test Email")}
+              </button>
+              {testEmailResult?.ok && (
+                <p style={{ marginTop: "0.5rem", color: "#15803d", fontSize: "0.8125rem" }}>
+                  ✓ {data.locale === "ja" ? "送信しました" : "Sent"}
+                </p>
+              )}
+              {testEmailResult && !testEmailResult.ok && (
+                <p style={{ marginTop: "0.5rem", color: "#b91c1c", fontSize: "0.8125rem" }}>
+                  {t.error}: {testEmailResult.error}
+                </p>
+              )}
+            </div>
           )}
         </section>
 
