@@ -23,6 +23,7 @@ export type StoreData = {
 
 type ProductData = {
   title: string;
+  handle: string;
   description: string;
   vendor: string;
   productType: string;
@@ -137,6 +138,7 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
           edges {
             node {
               title
+              handle
               description
               vendor
               productType
@@ -164,6 +166,7 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
             edges: Array<{
               node: {
                 title: string;
+                handle: string;
                 description: string;
                 vendor: string;
                 productType: string;
@@ -203,6 +206,7 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
 
         products.push({
           title: p.title,
+          handle: p.handle ?? "",
           description: stripHtml(p.description ?? ""),
           vendor: p.vendor ?? "",
           productType: p.productType ?? "",
@@ -400,10 +404,11 @@ export function formatStoreDataAsText(data: StoreData): string {
   // Store Info
   lines.push("## Store Information");
   lines.push("");
-  if (data.shopDomain) lines.push(`- **Website**: ${data.shopDomain}`);
-  if (data.shopEmail) lines.push(`- **Contact**: ${data.shopEmail}`);
-  lines.push(`- **Total Products**: ${data.products.length}`);
-  lines.push(`- **Collections**: ${data.collections.length}`);
+  if (data.shopDomain) lines.push(`- Website: ${data.shopDomain}`);
+  if (data.shopEmail) lines.push(`- Contact Email: ${data.shopEmail}`);
+  lines.push(`- Total Products: ${data.products.length}`);
+  lines.push(`- Total Collections: ${data.collections.length}`);
+  lines.push(`- Total Locations: ${data.locations.length}`);
   lines.push("");
 
   // Collections
@@ -412,10 +417,11 @@ export function formatStoreDataAsText(data: StoreData): string {
     lines.push("");
     for (const col of data.collections) {
       lines.push(`### ${col.title}`);
+      lines.push(`- Collection ID: ${col.handle}`);
       if (col.description) {
-        lines.push(col.description);
+        lines.push(`- Description: ${col.description}`);
       }
-      lines.push(`- Products: ${col.productCount}`);
+      lines.push(`- Product Count: ${col.productCount}`);
       if (data.shopDomain) {
         lines.push(`- URL: ${data.shopDomain}/collections/${col.handle}`);
       }
@@ -432,18 +438,23 @@ export function formatStoreDataAsText(data: StoreData): string {
 
     for (const p of data.products) {
       lines.push(`### ${p.title}`);
-      if (p.description) {
-        lines.push(truncateText(p.description, 500));
+      if (p.handle) {
+        lines.push(`- Product ID: ${p.handle}`);
       }
-      const meta: string[] = [];
-      if (p.vendor) meta.push(`Vendor: ${p.vendor}`);
-      if (p.productType) meta.push(`Type: ${p.productType}`);
-      if (p.priceRange) meta.push(`Price: ${p.priceRange}`);
-      if (meta.length > 0) {
-        lines.push(`- ${meta.join(" | ")}`);
+      if (p.description) {
+        lines.push(`- Description: ${truncateText(p.description, 500)}`);
+      }
+      if (p.vendor) {
+        lines.push(`- Vendor: ${p.vendor}`);
+      }
+      if (p.productType) {
+        lines.push(`- Category: ${p.productType}`);
+      }
+      if (p.priceRange) {
+        lines.push(`- Price: ${p.priceRange}`);
       }
       if (p.tags.length > 0) {
-        lines.push(`- Tags: ${p.tags.join(", ")}`);
+        lines.push(`- Labels: ${p.tags.join(", ")}`);
       }
       if (p.url) {
         lines.push(`- URL: ${p.url}`);
