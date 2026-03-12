@@ -62,10 +62,14 @@ const emptySettings = {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { session } = await authenticate.admin(request);
+    const { session, admin } = await authenticate.admin(request);
     const shop = session?.shop ?? "";
     const storeUrl = shop ? `https://${shop}` : "";
     const locale = getLocaleFromRequest(request);
+
+    // トライアル・課金状態をチェック
+    const { syncTrialAndAccess } = await import("../lib/trial.server");
+    const trialInfo = await syncTrialAndAccess(admin, shop);
 
     // openaiApiKey 列がまだない DB でも動くよう、select で列を限定（openaiApiKey は参照しない）
     const settings = shop
@@ -121,6 +125,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       storeUrl,
       locale,
       t: getTranslations(locale),
+      trialInfo,
       settings: settings
         ? {
             siteType: settings.siteType ?? "",
@@ -151,6 +156,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       storeUrl: "",
       locale,
       t: getTranslations(locale),
+      trialInfo: { hasAccess: true, trialEndsAt: "", isSubscribed: false, isTrialActive: false, daysRemaining: 0 },
       settings: emptySettings,
       loaderError: message,
     };
@@ -1548,6 +1554,48 @@ export default function AppIndex() {
       </main>
 
       <aside style={{ position: "sticky", top: "1rem" }}>
+        {/* トライアル・課金バナー */}
+        {data.trialInfo.isTrialActive && (
+          <section style={{ ...sectionStyle, background: "#fef3c7", borderLeft: "3px solid #f59e0b", marginTop: 0 }}>
+            <p style={{ margin: 0, fontWeight: 600, color: "#92400e", fontSize: "0.875rem" }}>
+              {data.locale === "ja"
+                ? `🎁 無料トライアル中（残り ${data.trialInfo.daysRemaining} 日）`
+                : `🎁 Free trial (${data.trialInfo.daysRemaining} days left)`}
+            </p>
+            <Link
+              to="/app/billing"
+              style={{ display: "inline-block", marginTop: "0.5rem", fontSize: "0.8125rem", color: "#92400e", textDecoration: "underline" }}
+            >
+              {data.locale === "ja" ? "Pro プランを見る" : "View Pro Plan"}
+            </Link>
+          </section>
+        )}
+        {!data.trialInfo.hasAccess && !data.trialInfo.isSubscribed && (
+          <section style={{ ...sectionStyle, background: "#fee2e2", borderLeft: "3px solid #ef4444", marginTop: 0 }}>
+            <p style={{ margin: 0, fontWeight: 600, color: "#b91c1c", fontSize: "0.875rem" }}>
+              {data.locale === "ja" ? "⚠️ トライアル終了" : "⚠️ Trial ended"}
+            </p>
+            <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#b91c1c" }}>
+              {data.locale === "ja"
+                ? "一部機能が制限されています。"
+                : "Some features are restricted."}
+            </p>
+            <Link
+              to="/app/billing"
+              style={{ display: "inline-block", marginTop: "0.5rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem", color: "#fff", background: "#ef4444", borderRadius: "6px", textDecoration: "none" }}
+            >
+              {data.locale === "ja" ? "Pro プランにアップグレード" : "Upgrade to Pro"}
+            </Link>
+          </section>
+        )}
+        {data.trialInfo.isSubscribed && (
+          <section style={{ ...sectionStyle, background: "#dcfce7", borderLeft: "3px solid #22c55e", marginTop: 0 }}>
+            <p style={{ margin: 0, fontWeight: 600, color: "#166534", fontSize: "0.875rem" }}>
+              ✓ {data.locale === "ja" ? "Pro プラン" : "Pro Plan"}
+            </p>
+          </section>
+        )}
+
         <section style={sectionStyle}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarStatusTitle}</h2>
           <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>

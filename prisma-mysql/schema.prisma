@@ -58,3 +58,14 @@ model LlmoSettings {
 
   @@map("LlmoSettings")
 }
+
+model AppTrial {
+  id          String   @id @default(cuid())
+  shopDomain  String   @unique
+  trialEndsAt DateTime
+  hasAccess   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("AppTrial")
+}
