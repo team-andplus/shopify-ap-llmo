@@ -31,6 +31,8 @@ type ProductData = {
   url: string;
   priceRange: string;
   status: string;
+  imageUrl: string;
+  options: string[];
 };
 
 type CollectionData = {
@@ -145,6 +147,12 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
               tags
               status
               onlineStoreUrl
+              featuredImage {
+                url
+              }
+              options {
+                name
+              }
               priceRangeV2 {
                 minVariantPrice { amount currencyCode }
                 maxVariantPrice { amount currencyCode }
@@ -173,6 +181,8 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
                 tags: string[];
                 status: string;
                 onlineStoreUrl: string | null;
+                featuredImage?: { url: string } | null;
+                options?: Array<{ name: string }>;
                 priceRangeV2?: {
                   minVariantPrice?: { amount: string; currencyCode: string };
                   maxVariantPrice?: { amount: string; currencyCode: string };
@@ -204,6 +214,10 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
           priceRange = min.amount === max.amount ? `${currency} ${minAmt}` : `${currency} ${minAmt}–${maxAmt}`;
         }
 
+        const optionNames = (p.options ?? [])
+          .map((o) => o.name)
+          .filter((name) => name && name !== "Title");
+
         products.push({
           title: p.title,
           handle: p.handle ?? "",
@@ -214,6 +228,8 @@ async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Pr
           url: p.onlineStoreUrl ?? "",
           priceRange,
           status: p.status,
+          imageUrl: p.featuredImage?.url ?? "",
+          options: optionNames,
         });
       }
 
@@ -455,6 +471,12 @@ export function formatStoreDataAsText(data: StoreData): string {
       }
       if (p.tags.length > 0) {
         lines.push(`- Labels: ${p.tags.join(", ")}`);
+      }
+      if (p.options.length > 0) {
+        lines.push(`- Options: ${p.options.join(", ")}`);
+      }
+      if (p.imageUrl) {
+        lines.push(`- Image: ${p.imageUrl}`);
       }
       if (p.url) {
         lines.push(`- URL: ${p.url}`);
