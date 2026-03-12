@@ -27,24 +27,20 @@ export function extractAiContextData(
   notesForAi: string | null
 ): AiContextData {
   const vendors = new Set<string>();
-  let productCount = 0;
 
-  for (const col of storeData.collections) {
-    for (const p of col.products) {
-      productCount++;
-      if (p.vendor) vendors.add(p.vendor);
-    }
+  for (const p of storeData.products) {
+    if (p.vendor) vendors.add(p.vendor);
   }
 
   return {
     shopName: storeData.shopName,
     shopDescription: storeData.shopDescription,
     siteType,
-    productCount,
+    productCount: storeData.products.length,
     collectionCount: storeData.collections.length,
     vendorCount: vendors.size,
-    hasShippingPolicy: !!storeData.shippingPolicy,
-    hasRefundPolicy: !!storeData.refundPolicy,
+    hasShippingPolicy: !!storeData.policies.shipping,
+    hasRefundPolicy: !!storeData.policies.refund,
     hasLocations: storeData.locations.length > 0,
     notesForAi,
   };

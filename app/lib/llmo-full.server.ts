@@ -1,35 +1,42 @@
 /**
  * llms.full.txt の生成ロジック。
- * ストアのコレクション・商品・ロケーション・ポリシー等を取得し、プレーンテキストに整形。
- * 有料プランでは AI 補正を適用し、Files API にアップロードする。
+ * ストアの全商品・コレクション・ロケーション・ポリシー等を取得し、プレーンテキストに整形。
  */
 
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 
-const MAX_COLLECTIONS = 20;
-const MAX_PRODUCTS_PER_COLLECTION = 30;
+const MAX_PRODUCTS_PER_PAGE = 250;
+const MAX_PRODUCTS_TOTAL = 5000;
+const MAX_COLLECTIONS = 50;
 const MAX_LOCATIONS = 10;
 
 export type StoreData = {
   shopName: string;
   shopDescription: string;
+  shopEmail: string;
+  shopDomain: string;
+  products: ProductData[];
   collections: CollectionData[];
   locations: LocationData[];
-  shippingPolicy: string;
-  refundPolicy: string;
+  policies: PolicyData;
+};
+
+type ProductData = {
+  title: string;
+  description: string;
+  vendor: string;
+  productType: string;
+  tags: string[];
+  url: string;
+  priceRange: string;
+  status: string;
 };
 
 type CollectionData = {
   title: string;
   description: string;
-  products: ProductData[];
-};
-
-type ProductData = {
-  title: string;
-  vendor: string;
-  productType: string;
-  priceRange: string;
+  handle: string;
+  productCount: number;
 };
 
 type LocationData = {
@@ -37,13 +44,24 @@ type LocationData = {
   address: string;
 };
 
+type PolicyData = {
+  shipping: string;
+  refund: string;
+  privacy: string;
+  terms: string;
+};
+
 /**
  * Shopify Admin API からストアデータを取得する。
+ * @param fullFetch true の場合、全商品を取得（定時処理用）。false の場合、500商品まで（手動生成用）。
  */
-export async function fetchStoreData(admin: AdminApiContext): Promise<StoreData> {
-  const [shopInfo, collections, locations, policies] = await Promise.all([
+export async function fetchStoreData(admin: AdminApiContext, fullFetch = false): Promise<StoreData> {
+  const maxProducts = fullFetch ? MAX_PRODUCTS_TOTAL : 500;
+
+  const [shopInfo, products, collections, locations, policies] = await Promise.all([
     fetchShopInfo(admin),
-    fetchCollectionsWithProducts(admin),
+    fetchAllProducts(admin, maxProducts),
+    fetchCollections(admin),
     fetchLocations(admin),
     fetchPolicies(admin),
   ]);
@@ -51,33 +69,165 @@ export async function fetchStoreData(admin: AdminApiContext): Promise<StoreData>
   return {
     shopName: shopInfo.name,
     shopDescription: shopInfo.description,
+    shopEmail: shopInfo.email,
+    shopDomain: shopInfo.domain,
+    products,
     collections,
     locations,
-    shippingPolicy: policies.shipping,
-    refundPolicy: policies.refund,
+    policies,
   };
 }
 
-async function fetchShopInfo(admin: AdminApiContext): Promise<{ name: string; description: string }> {
+async function fetchShopInfo(admin: AdminApiContext): Promise<{
+  name: string;
+  description: string;
+  email: string;
+  domain: string;
+}> {
   const query = `#graphql
     query {
       shop {
         name
         description
+        email
+        primaryDomain {
+          url
+        }
       }
     }
   `;
   const res = await admin.graphql(query);
   const json = (await res.json()) as {
-    data?: { shop?: { name?: string; description?: string } };
+    data?: {
+      shop?: {
+        name?: string;
+        description?: string;
+        email?: string;
+        primaryDomain?: { url?: string };
+      };
+    };
   };
   return {
     name: json.data?.shop?.name ?? "",
     description: json.data?.shop?.description ?? "",
+    email: json.data?.shop?.email ?? "",
+    domain: json.data?.shop?.primaryDomain?.url ?? "",
   };
 }
 
-async function fetchCollectionsWithProducts(admin: AdminApiContext): Promise<CollectionData[]> {
+/**
+ * 全商品を取得（ページネーション対応）
+ */
+async function fetchAllProducts(admin: AdminApiContext, maxProducts: number): Promise<ProductData[]> {
+  const products: ProductData[] = [];
+  let cursor: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage && products.length < maxProducts) {
+    const remaining = maxProducts - products.length;
+    const pageSize = Math.min(MAX_PRODUCTS_PER_PAGE, remaining);
+
+    const query = `#graphql
+      query getProducts($first: Int!, $after: String) {
+        products(first: $first, after: $after, query: "status:active") {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          edges {
+            node {
+              title
+              description
+              vendor
+              productType
+              tags
+              status
+              onlineStoreUrl
+              priceRangeV2 {
+                minVariantPrice { amount currencyCode }
+                maxVariantPrice { amount currencyCode }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const res = await admin.graphql(query, {
+        variables: { first: pageSize, after: cursor },
+      });
+      const json = (await res.json()) as {
+        data?: {
+          products?: {
+            pageInfo: { hasNextPage: boolean; endCursor: string | null };
+            edges: Array<{
+              node: {
+                title: string;
+                description: string;
+                vendor: string;
+                productType: string;
+                tags: string[];
+                status: string;
+                onlineStoreUrl: string | null;
+                priceRangeV2?: {
+                  minVariantPrice?: { amount: string; currencyCode: string };
+                  maxVariantPrice?: { amount: string; currencyCode: string };
+                };
+              };
+            }>;
+          };
+        };
+        errors?: Array<{ message: string }>;
+      };
+
+      if (json.errors?.length) {
+        console.warn("[llmo-full] products query error:", json.errors[0]?.message);
+        break;
+      }
+
+      const pageInfo = json.data?.products?.pageInfo;
+      const edges = json.data?.products?.edges ?? [];
+
+      for (const edge of edges) {
+        const p = edge.node;
+        const min = p.priceRangeV2?.minVariantPrice;
+        const max = p.priceRangeV2?.maxVariantPrice;
+        let priceRange = "";
+        if (min && max) {
+          const currency = min.currencyCode;
+          const minAmt = Number(min.amount).toLocaleString();
+          const maxAmt = Number(max.amount).toLocaleString();
+          priceRange = min.amount === max.amount ? `${currency} ${minAmt}` : `${currency} ${minAmt}–${maxAmt}`;
+        }
+
+        products.push({
+          title: p.title,
+          description: stripHtml(p.description ?? ""),
+          vendor: p.vendor ?? "",
+          productType: p.productType ?? "",
+          tags: p.tags ?? [],
+          url: p.onlineStoreUrl ?? "",
+          priceRange,
+          status: p.status,
+        });
+      }
+
+      hasNextPage = pageInfo?.hasNextPage ?? false;
+      cursor = pageInfo?.endCursor ?? null;
+    } catch (err) {
+      console.error("[llmo-full] fetchAllProducts error:", err);
+      break;
+    }
+  }
+
+  return products;
+}
+
+/**
+ * コレクション一覧を取得
+ */
+async function fetchCollections(admin: AdminApiContext): Promise<CollectionData[]> {
   const query = `#graphql
     query getCollections($first: Int!) {
       collections(first: $first) {
@@ -85,78 +235,50 @@ async function fetchCollectionsWithProducts(admin: AdminApiContext): Promise<Col
           node {
             title
             description
-            products(first: ${MAX_PRODUCTS_PER_COLLECTION}) {
-              edges {
-                node {
-                  title
-                  vendor
-                  productType
-                  priceRangeV2 {
-                    minVariantPrice { amount currencyCode }
-                    maxVariantPrice { amount currencyCode }
-                  }
-                }
-              }
+            handle
+            productsCount {
+              count
             }
           }
         }
       }
     }
   `;
-  const res = await admin.graphql(query, { variables: { first: MAX_COLLECTIONS } });
-  const json = (await res.json()) as {
-    data?: {
-      collections?: {
-        edges: Array<{
-          node: {
-            title: string;
-            description: string;
-            products: {
-              edges: Array<{
-                node: {
-                  title: string;
-                  vendor: string;
-                  productType: string;
-                  priceRangeV2?: {
-                    minVariantPrice?: { amount: string; currencyCode: string };
-                    maxVariantPrice?: { amount: string; currencyCode: string };
-                  };
-                };
-              }>;
-            };
-          };
-        }>;
-      };
-    };
-  };
 
-  const collections = json.data?.collections?.edges ?? [];
-  return collections.map((edge) => {
-    const col = edge.node;
-    const products = col.products.edges.map((pe) => {
-      const p = pe.node;
-      const min = p.priceRangeV2?.minVariantPrice;
-      const max = p.priceRangeV2?.maxVariantPrice;
-      let priceRange = "";
-      if (min && max) {
-        const currency = min.currencyCode;
-        const minAmt = Number(min.amount).toLocaleString();
-        const maxAmt = Number(max.amount).toLocaleString();
-        priceRange = min.amount === max.amount ? `${currency} ${minAmt}` : `${currency} ${minAmt}–${maxAmt}`;
-      }
-      return {
-        title: p.title,
-        vendor: p.vendor,
-        productType: p.productType,
-        priceRange,
+  try {
+    const res = await admin.graphql(query, { variables: { first: MAX_COLLECTIONS } });
+    const json = (await res.json()) as {
+      data?: {
+        collections?: {
+          edges: Array<{
+            node: {
+              title: string;
+              description: string;
+              handle: string;
+              productsCount?: { count: number };
+            };
+          }>;
+        };
       };
-    });
-    return {
-      title: col.title,
-      description: col.description ?? "",
-      products,
+      errors?: Array<{ message: string }>;
     };
-  });
+
+    if (json.errors?.length) {
+      console.warn("[llmo-full] collections query error:", json.errors[0]?.message);
+      return [];
+    }
+
+    const edges = json.data?.collections?.edges ?? [];
+    return edges.map((edge) => ({
+      title: edge.node.title,
+      description: stripHtml(edge.node.description ?? ""),
+      handle: edge.node.handle,
+      productCount: edge.node.productsCount?.count ?? 0,
+    }));
+  } catch (err) {
+    console.warn("[llmo-full] fetchCollections failed:", err);
+    return [];
+  }
 }
 
 async function fetchLocations(admin: AdminApiContext): Promise<LocationData[]> {
@@ -223,31 +345,35 @@ async function fetchLocations(admin: AdminApiContext): Promise<LocationData[]> {
   }
 }
 
-async function fetchPolicies(admin: AdminApiContext): Promise<{ shipping: string; refund: string }> {
+async function fetchPolicies(admin: AdminApiContext): Promise<PolicyData> {
   try {
     const query = `#graphql
       query {
-        shopPolicies {
-          type
-          body
+        shop {
+          shopPolicies {
+            type
+            body
+          }
         }
       }
     `;
     const res = await admin.graphql(query);
     const json = (await res.json()) as {
       data?: {
-        shopPolicies?: Array<{ type: string; body: string }>;
+        shop?: {
+          shopPolicies?: Array<{ type: string; body: string }>;
+        };
       };
     };
-    const policies = json.data?.shopPolicies ?? [];
-    const shipping = policies.find((p) => p.type === "SHIPPING_POLICY")?.body ?? "";
-    const refund = policies.find((p) => p.type === "REFUND_POLICY")?.body ?? "";
+    const policies = json.data?.shop?.shopPolicies ?? [];
     return {
-      shipping: stripHtml(shipping),
-      refund: stripHtml(refund),
+      shipping: stripHtml(policies.find((p) => p.type === "SHIPPING_POLICY")?.body ?? ""),
+      refund: stripHtml(policies.find((p) => p.type === "REFUND_POLICY")?.body ?? ""),
+      privacy: stripHtml(policies.find((p) => p.type === "PRIVACY_POLICY")?.body ?? ""),
+      terms: stripHtml(policies.find((p) => p.type === "TERMS_OF_SERVICE")?.body ?? ""),
     };
   } catch {
-    return { shipping: "", refund: "" };
+    return { shipping: "", refund: "", privacy: "", terms: "" };
   }
 }
 
@@ -261,43 +387,75 @@ function stripHtml(html: string): string {
 export function formatStoreDataAsText(data: StoreData): string {
   const lines: string[] = [];
 
+  // Header
   lines.push(`# ${data.shopName || "Store"}: Full Site Information`);
   lines.push("");
   if (data.shopDescription) {
     lines.push(`> ${data.shopDescription}`);
     lines.push("");
   }
-  lines.push("This file provides a structured summary of the store's collections, products, locations, and policies for LLM and AI agent reference.");
+  lines.push("This file provides a comprehensive summary of the store for LLM and AI agent reference.");
   lines.push("");
 
+  // Store Info
+  lines.push("## Store Information");
+  lines.push("");
+  if (data.shopDomain) lines.push(`- **Website**: ${data.shopDomain}`);
+  if (data.shopEmail) lines.push(`- **Contact**: ${data.shopEmail}`);
+  lines.push(`- **Total Products**: ${data.products.length}`);
+  lines.push(`- **Collections**: ${data.collections.length}`);
+  lines.push("");
+
+  // Collections
   if (data.collections.length > 0) {
-    lines.push("## Collections & Products");
+    lines.push("## Collections");
     lines.push("");
     for (const col of data.collections) {
       lines.push(`### ${col.title}`);
       if (col.description) {
-        lines.push(`${col.description}`);
+        lines.push(col.description);
       }
-      lines.push("");
-      if (col.products.length > 0) {
-        for (const p of col.products) {
-          const parts = [p.title];
-          if (p.vendor) parts.push(`by ${p.vendor}`);
-          if (p.priceRange) parts.push(`(${p.priceRange})`);
-          lines.push(`- ${parts.join(" ")}`);
-        }
-      } else {
-        lines.push("- (No products in this collection)");
+      lines.push(`- Products: ${col.productCount}`);
+      if (data.shopDomain) {
+        lines.push(`- URL: ${data.shopDomain}/collections/${col.handle}`);
       }
       lines.push("");
     }
   }
 
-  const vendors = new Set<string>();
-  for (const col of data.collections) {
-    for (const p of col.products) {
-      if (p.vendor) vendors.add(p.vendor);
+  // Products
+  if (data.products.length > 0) {
+    lines.push("## Products");
+    lines.push("");
+    lines.push(`Total: ${data.products.length} products`);
+    lines.push("");
+
+    for (const p of data.products) {
+      lines.push(`### ${p.title}`);
+      if (p.description) {
+        lines.push(truncateText(p.description, 500));
+      }
+      const meta: string[] = [];
+      if (p.vendor) meta.push(`Vendor: ${p.vendor}`);
+      if (p.productType) meta.push(`Type: ${p.productType}`);
+      if (p.priceRange) meta.push(`Price: ${p.priceRange}`);
+      if (meta.length > 0) {
+        lines.push(`- ${meta.join(" | ")}`);
+      }
+      if (p.tags.length > 0) {
+        lines.push(`- Tags: ${p.tags.join(", ")}`);
+      }
+      if (p.url) {
+        lines.push(`- URL: ${p.url}`);
+      }
+      lines.push("");
     }
+  }
+
+  // Brands / Vendors
+  const vendors = new Set<string>();
+  for (const p of data.products) {
+    if (p.vendor) vendors.add(p.vendor);
   }
   if (vendors.size > 0) {
     lines.push("## Brands / Vendors");
@@ -308,6 +466,7 @@ export function formatStoreDataAsText(data: StoreData): string {
     lines.push("");
   }
 
+  // Locations
   if (data.locations.length > 0) {
     lines.push("## Locations");
     lines.push("");
@@ -317,23 +476,37 @@ export function formatStoreDataAsText(data: StoreData): string {
     lines.push("");
   }
 
-  if (data.shippingPolicy || data.refundPolicy) {
+  // Policies
+  const hasPolicies = data.policies.shipping || data.policies.refund || data.policies.privacy || data.policies.terms;
+  if (hasPolicies) {
     lines.push("## Policies");
     lines.push("");
-    if (data.shippingPolicy) {
+    if (data.policies.shipping) {
       lines.push("### Shipping Policy");
-      lines.push(truncateText(data.shippingPolicy, 1000));
+      lines.push(truncateText(data.policies.shipping, 2000));
       lines.push("");
     }
-    if (data.refundPolicy) {
+    if (data.policies.refund) {
       lines.push("### Refund Policy");
-      lines.push(truncateText(data.refundPolicy, 1000));
+      lines.push(truncateText(data.policies.refund, 2000));
+      lines.push("");
+    }
+    if (data.policies.privacy) {
+      lines.push("### Privacy Policy");
+      lines.push(truncateText(data.policies.privacy, 2000));
+      lines.push("");
+    }
+    if (data.policies.terms) {
+      lines.push("### Terms of Service");
+      lines.push(truncateText(data.policies.terms, 2000));
       lines.push("");
     }
   }
 
+  // Footer
   lines.push("---");
   lines.push(`Generated at: ${new Date().toISOString()}`);
+  lines.push(`Products included: ${data.products.length}`);
   lines.push("");
 
   return lines.join("\n");
