@@ -475,8 +475,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
 
-      // URL リダイレクトを設定（/llms.txt → CDN URL）
-      setupAllUrlRedirects(admin, { llmsTxtUrl: result.url }).catch((e) =>
+      // URL リダイレクトを設定（/llms.txt → CDN URL, sitemap-ai.xml も一緒に設定）
+      setupAllUrlRedirects(admin, { llmsTxtUrl: result.url, includeSitemapAi: true }).catch((e) =>
         console.error("[ap-llmo] setupAllUrlRedirects failed:", e)
       );
 

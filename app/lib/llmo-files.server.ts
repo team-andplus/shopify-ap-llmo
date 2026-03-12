@@ -708,7 +708,7 @@ async function findUrlRedirectByPath(
 }
 
 /**
- * llms.txt, llms.full.txt, .ai-context, docs/ai/*.md のリダイレクトをまとめて設定する。
+ * llms.txt, llms.full.txt, .ai-context, docs/ai/*.md, sitemap-ai.xml のリダイレクトをまとめて設定する。
  * リダイレクト先は App Proxy 経由（/apps/llmo/...）にして、ログ記録を可能にする。
  */
 export async function setupAllUrlRedirects(
@@ -718,6 +718,7 @@ export async function setupAllUrlRedirects(
     llmsFullTxtUrl?: string | null;
     aiContextUrl?: string | null;
     docsAiFiles?: Array<{ filename: string; fileUrl?: string | null }>;
+    includeSitemapAi?: boolean;
   }
 ): Promise<void> {
   console.log("[llmo-files] setupAllUrlRedirects called with:", {
@@ -725,6 +726,7 @@ export async function setupAllUrlRedirects(
     llmsFullTxtUrl: options.llmsFullTxtUrl ? "set" : "not set",
     aiContextUrl: options.aiContextUrl ? "set" : "not set",
     docsAiFilesCount: options.docsAiFiles?.length ?? 0,
+    includeSitemapAi: options.includeSitemapAi ?? false,
   });
 
   const tasks: Promise<unknown>[] = [];
@@ -775,6 +777,16 @@ export async function setupAllUrlRedirects(
         );
       }
     }
+  }
+  if (options.includeSitemapAi) {
+    tasks.push(
+      createOrUpdateUrlRedirect(admin, "/sitemap-ai.xml", "/apps/llmo/sitemap-ai.xml").then((result) => {
+        console.log("[llmo-files] redirect /sitemap-ai.xml result:", result);
+        return result;
+      }).catch((e) => {
+        console.error("[llmo-files] redirect /sitemap-ai.xml failed:", e);
+      })
+    );
   }
 
   await Promise.all(tasks);
