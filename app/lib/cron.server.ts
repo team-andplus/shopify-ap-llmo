@@ -28,8 +28,8 @@ export function initCronJobs(): void {
   }
   cronInitialized = true;
 
-  // 毎日 UTC 18:00 (JST 3:00 AM) に実行
-  cron.schedule("0 18 * * *", async () => {
+  // 毎日 UTC 17:00 (JST 2:00 AM) に実行
+  cron.schedule("0 17 * * *", async () => {
     console.log("[cron] Daily job started at", new Date().toISOString());
     try {
       await regenerateAllLlmsFullTxt();
@@ -40,7 +40,7 @@ export function initCronJobs(): void {
     }
   });
 
-  console.log("[cron] Scheduled daily job at UTC 18:00 (JST 3:00 AM)");
+  console.log("[cron] Scheduled daily job at UTC 17:00 (JST 2:00 AM)");
 }
 
 /**
