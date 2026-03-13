@@ -58,6 +58,11 @@ export default function AccessLogPage() {
           max-width: 16rem;
         }
         .access-log-page .section-title { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .access-log-page .mini-table-wrap { min-width: 0; }
+        .access-log-page .ua-line { font-size: 0.8125rem; color: #6d7175; background: #f9fafb; padding: 0.25rem 0.75rem !important; word-break: break-all; }
+        @media (max-width: 640px) {
+          .access-log-page .grid-2x2 { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <p style={{ marginBottom: "1rem" }}>
@@ -123,45 +128,24 @@ export default function AccessLogPage() {
           <h2 className="section-title">{t.aiBotAccessTitle}</h2>
           <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "1rem" }}>{t.aiBotAccessDesc}</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
-            <div>
-              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotByService}</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t.aiBotService}</th>
-                    <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotByService}</h3>
+            <table style={{ maxWidth: "20rem" }}>
+              <thead>
+                <tr>
+                  <th>{t.aiBotService}</th>
+                  <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortByCount(Object.entries(aiBotByService)).map(([service, count]) => (
+                  <tr key={service}>
+                    <td>{service}</td>
+                    <td>{count}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {sortByCount(Object.entries(aiBotByService)).map(([service, count]) => (
-                    <tr key={service}>
-                      <td>{service}</td>
-                      <td>{count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotByBot}</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t.aiBotName}</th>
-                    <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortByCount(Object.entries(aiBotByBot)).map(([bot, count]) => (
-                    <tr key={bot}>
-                      <td>{bot}</td>
-                      <td>{count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotRecentAccess}</h3>
@@ -228,61 +212,95 @@ export default function AccessLogPage() {
               <strong>{t.totalRequests}:</strong> {total}
             </p>
 
-            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byShop}</h3>
-            <table style={{ marginBottom: "1.5rem" }}>
-              <thead>
-                <tr>
-                  <th>{t.accessLogShop}</th>
-                  <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortByCount(Object.entries(byShop)).map(([s, count]) => (
-                  <tr key={s}>
-                    <td>{s || "(空)"}</td>
-                    <td>{count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byPath}</h3>
-            <table style={{ marginBottom: "1.5rem" }}>
-              <thead>
-                <tr>
-                  <th className="path-cell">{t.accessLogPath}</th>
-                  <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortByCount(Object.entries(byPath)).map(([path, count]) => (
-                  <tr key={path}>
-                    <td className="path-cell">{path || "(空)"}</td>
-                    <td>{count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byDate}</h3>
-            <table style={{ marginBottom: "1.5rem" }}>
-              <thead>
-                <tr>
-                  <th>{t.accessLogDate}</th>
-                  <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(byDate)
-                  .sort((a, b) => b[0].localeCompare(a[0]))
-                  .map(([day, count]) => (
-                    <tr key={day}>
-                      <td>{day}</td>
-                      <td>{count}</td>
+            {/* ストア別・パス別・日付別・Bot別を 2x2 で並べる */}
+            <div
+              className="grid-2x2"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <div className="mini-table-wrap">
+                <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byShop}</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t.accessLogShop}</th>
+                      <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {sortByCount(Object.entries(byShop)).map(([s, count]) => (
+                      <tr key={s}>
+                        <td>{s || "(空)"}</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mini-table-wrap">
+                <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byPath}</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="path-cell">{t.accessLogPath}</th>
+                      <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortByCount(Object.entries(byPath)).map(([path, count]) => (
+                      <tr key={path}>
+                        <td className="path-cell">{path || "(空)"}</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mini-table-wrap">
+                <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byDate}</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t.accessLogDate}</th>
+                      <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(byDate)
+                      .sort((a, b) => b[0].localeCompare(a[0]))
+                      .map(([day, count]) => (
+                        <tr key={day}>
+                          <td>{day}</td>
+                          <td>{count}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mini-table-wrap">
+                <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotByBot}</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t.aiBotName}</th>
+                      <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortByCount(Object.entries(aiBotByBot)).map(([bot, count]) => (
+                      <tr key={bot}>
+                        <td>{bot}</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.recentAccess}</h3>
             <div style={{ overflowX: "auto" }}>
@@ -293,25 +311,26 @@ export default function AccessLogPage() {
                     <th>{t.accessLogShop}</th>
                     <th className="path-cell">{t.accessLogPath}</th>
                     <th>{t.accessLogIp}</th>
-                    <th className="ua-cell">{t.accessLogUserAgent}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.map((row, i) => (
-                    <tr key={i} style={row.aiBot ? { backgroundColor: "#e8f5e9" } : undefined}>
+                  {recent.flatMap((row, i) => [
+                    <tr key={`${i}-main`} style={row.aiBot ? { backgroundColor: "#e8f5e9" } : undefined}>
                       <td style={{ whiteSpace: "nowrap" }}>{row.t}</td>
                       <td>{row.shop}</td>
                       <td className="path-cell">{row.path}</td>
                       <td>{row.ip || "—"}</td>
-                      <td className="ua-cell" title={row.ua}>
+                    </tr>,
+                    <tr key={`${i}-ua`} style={row.aiBot ? { backgroundColor: "#e8f5e9" } : undefined}>
+                      <td colSpan={4} className="ua-line">
                         {row.aiBot ? (
                           <span style={{ color: "#2e7d32", fontWeight: 600 }}>🤖 {row.aiBot.name}</span>
                         ) : (
                           row.ua || "—"
                         )}
                       </td>
-                    </tr>
-                  ))}
+                    </tr>,
+                  ])}
                 </tbody>
               </table>
             </div>
