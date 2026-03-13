@@ -398,22 +398,7 @@ export default function AppIndex() {
         </p>
       </section>
 
-      {/* CTA */}
-      <section style={{ ...sectionStyle, marginTop: "1rem" }}>
-        <p style={{ marginBottom: "0.75rem", fontSize: "1rem", lineHeight: 1.6 }}>
-          {data.locale === "ja"
-            ? "AI がストアを正しく理解するために、llms.txt や .ai-context を設定します。"
-            : "Set up llms.txt and .ai-context so AI can understand your store correctly."}
-        </p>
-        <Link
-          to="/app/setup"
-          style={{ display: "inline-block", padding: "0.5rem 1rem", borderRadius: "6px", background: "#2c6ecb", color: "#fff", fontWeight: 600, textDecoration: "none", fontSize: "0.9375rem" }}
-        >
-          {data.locale === "ja" ? "設定する" : "Setup"}
-        </Link>
-      </section>
-
-      {/* AI Visibility（メインエリア） */}
+      {/* AI Visibility */}
       <section
         style={{
           ...sectionStyle,
@@ -464,6 +449,68 @@ export default function AppIndex() {
           </>
         )}
       </section>
+
+      {/* 生成されたファイルと状態 */}
+      <section style={{ ...sectionStyle, background: "#f0f9ff", borderLeft: "4px solid #3b82f6" }}>
+        <h2 style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: "0.75rem", color: "#1a1a1a" }}>
+          {t.generatedFilesTitle}
+        </h2>
+        <p style={{ margin: "0 0 1rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
+          {t.generatedFilesDesc}
+        </p>
+        <ul style={{ ...listStyle, marginBottom: "1rem", fontSize: "0.875rem" }}>
+          <li>{llmsTxtSet ? t.statusLlmsTxtSet : t.statusLlmsTxtNotSet}</li>
+          <li>{t.statusDocsAiCount.replace("{count}", String(docsAiCount))}</li>
+        </ul>
+        <div style={{ fontSize: "0.8125rem", lineHeight: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
+            <span style={{ fontWeight: 600 }}>llms.txt</span>
+            {data.settings.llmsTxtFileUrl ? (
+              <a href={`${data.storeUrl}/llms.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.8125rem" }}>
+                {data.storeUrl}/llms.txt ↗
+              </a>
+            ) : (
+              <span style={{ color: "#9ca3af", fontSize: "0.8125rem" }}>{t.fileNotGenerated}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
+            <span style={{ fontWeight: 600 }}>llms.full.txt</span>
+            {data.settings.llmsFullTxtFileUrl ? (
+              <a href={`${data.storeUrl}/llms.full.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.8125rem" }}>
+                {data.storeUrl}/llms.full.txt ↗
+              </a>
+            ) : (
+              <span style={{ color: "#9ca3af", fontSize: "0.8125rem" }}>{t.fileNotGenerated}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
+            <span style={{ fontWeight: 600 }}>.ai-context</span>
+            {data.settings.aiContextFileUrl ? (
+              <a href={`${data.storeUrl}/.ai-context`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.8125rem" }}>
+                {data.storeUrl}/.ai-context ↗
+              </a>
+            ) : (
+              <span style={{ color: "#9ca3af", fontSize: "0.8125rem" }}>{t.fileNotGenerated}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
+            <span style={{ fontWeight: 600 }}>docs/ai</span>
+            {docsAiCount > 0 ? (
+              <a href={`${data.storeUrl}/docs/ai/README.md`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.8125rem" }}>
+                {data.storeUrl}/docs/ai/ ↗
+              </a>
+            ) : (
+              <span style={{ color: "#9ca3af", fontSize: "0.8125rem" }}>{t.fileNotGenerated}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
+            <span style={{ fontWeight: 600 }}>sitemap-ai.xml</span>
+            <a href={`${data.storeUrl}/sitemap-ai.xml`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.8125rem" }}>
+              {data.storeUrl}/sitemap-ai.xml ↗
+            </a>
+          </div>
+        </div>
+      </section>
       </main>
 
       <aside style={{ position: "sticky", top: "1rem" }}>
@@ -509,128 +556,22 @@ export default function AppIndex() {
           </section>
         )}
 
-        {/* AI Visibility ウィジェット */}
-        <section
-          style={{
-            ...sectionStyle,
-            background: data.aiVisibility.aiBotTotal > 0 ? "#e8f5e9" : "#f5f5f5",
-            borderLeft: data.aiVisibility.aiBotTotal > 0 ? "4px solid #4caf50" : "4px solid #9e9e9e",
-          }}
-        >
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.5rem", color: data.aiVisibility.aiBotTotal > 0 ? "#2e7d32" : "#666" }}>
-            {data.aiVisibility.aiBotTotal > 0 ? "🤖 " : ""}{t.aiVisibilityTitle}
+        {/* 設定導線 */}
+        <section style={{ ...sectionStyle, background: "#eff6ff", borderLeft: "3px solid #2c6ecb", marginTop: data.trialInfo.isSubscribed ? undefined : 0 }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem", color: "#1e40af" }}>
+            {data.locale === "ja" ? "設定" : "Setup"}
           </h2>
-          {data.aiVisibility.aiBotTotal > 0 ? (
-            <>
-              <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", color: "#2e7d32", fontWeight: 600 }}>
-                {t.aiVisibilityDesc}
-              </p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                <span style={{ fontSize: "2rem", fontWeight: 700, color: "#2e7d32" }}>{data.aiVisibility.aiBotTotal}</span>
-                <span style={{ fontSize: "0.875rem", color: "#666" }}>{t.aiVisitsTotal}</span>
-              </div>
-              {Object.entries(data.aiVisibility.aiBotByService).length > 0 && (
-                <div style={{ marginBottom: "0.75rem" }}>
-                  {Object.entries(data.aiVisibility.aiBotByService)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(([service, count]) => (
-                      <div key={service} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "#555", padding: "0.125rem 0" }}>
-                        <span>{service}</span>
-                        <span style={{ fontWeight: 600 }}>{count}</span>
-                      </div>
-                    ))}
-                </div>
-              )}
-              <Link
-                to="access-log"
-                style={{ display: "inline-block", fontSize: "0.8125rem", color: "#2e7d32", textDecoration: "underline" }}
-              >
-                {t.viewDetails} →
-              </Link>
-            </>
-          ) : (
-            <>
-              <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.875rem", color: "#666" }}>
-                {t.noAiVisitsYet}
-              </p>
-              <p style={{ margin: 0, fontSize: "0.75rem", color: "#999" }}>
-                {t.noAiVisitsHint}
-              </p>
-            </>
-          )}
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarStatusTitle}</h2>
-          <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>
-            <li>{llmsTxtSet ? t.statusLlmsTxtSet : t.statusLlmsTxtNotSet}</li>
-            <li>{t.statusDocsAiCount.replace("{count}", String(docsAiCount))}</li>
-          </ul>
-        </section>
-
-        {/* Generated Files - URL まとめ */}
-        <section style={{ ...sectionStyle, background: "#f0f9ff", borderLeft: "3px solid #3b82f6" }}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.generatedFilesTitle}</h2>
-          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#6d7175" }}>{t.generatedFilesDesc}</p>
-          <div style={{ fontSize: "0.8125rem", lineHeight: 1.8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>llms.txt</span>
-              {data.settings.llmsTxtFileUrl ? (
-                <a href={`${data.storeUrl}/llms.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
-                  /llms.txt ↗
-                </a>
-              ) : (
-                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>llms.full.txt</span>
-              {data.settings.llmsFullTxtFileUrl ? (
-                <a href={`${data.storeUrl}/llms.full.txt`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
-                  /llms.full.txt ↗
-                </a>
-              ) : (
-                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>.ai-context</span>
-              {data.settings.aiContextFileUrl ? (
-                <a href={`${data.storeUrl}/.ai-context`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
-                  /.ai-context ↗
-                </a>
-              ) : (
-                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>docs/ai</span>
-              {docsAiCount > 0 ? (
-                <a href={`${data.storeUrl}/docs/ai/README.md`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
-                  /docs/ai/ ↗
-                </a>
-              ) : (
-                <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{t.fileNotGenerated}</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>sitemap-ai.xml</span>
-              <a href={`${data.storeUrl}/sitemap-ai.xml`} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontSize: "0.75rem" }}>
-                /sitemap-ai.xml ↗
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sitemapSectionTitle}</h2>
-          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>{t.sitemapDesc}</p>
-          <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.8125rem", fontWeight: 600 }}>{t.sitemapUrl}:</p>
-          <code style={{ display: "block", fontSize: "0.75rem", background: "#f1f1f1", padding: "0.5rem", borderRadius: "4px", wordBreak: "break-all", marginBottom: "0.5rem" }}>
-            {data.storeUrl}/apps/llmo/sitemap-ai.xml
-          </code>
-          <p style={{ margin: 0, fontSize: "0.75rem", color: "#6d7175" }}>{t.sitemapCopyHint}</p>
+          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
+            {data.locale === "ja"
+              ? "サイト情報・llms.txt・.ai-context・docs/ai を編集します。"
+              : "Edit site info, llms.txt, .ai-context, and docs/ai."}
+          </p>
+          <Link
+            to="/app/setup"
+            style={{ display: "inline-block", padding: "0.5rem 1rem", borderRadius: "6px", background: "#2c6ecb", color: "#fff", fontWeight: 600, textDecoration: "none", fontSize: "0.875rem" }}
+          >
+            {data.locale === "ja" ? "設定する" : "Go to Setup"}
+          </Link>
         </section>
 
         <details style={{ ...sectionStyle, padding: "0.75rem 1rem" }}>
