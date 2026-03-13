@@ -264,6 +264,8 @@ const inputStyle = {
   display: "block",
   width: "100%",
   maxWidth: "480px",
+  minWidth: 0,
+  boxSizing: "border-box" as const,
   marginTop: "0.25rem",
   padding: "0.5rem 0.75rem",
   border: "1px solid #c9cccf",
@@ -572,8 +574,8 @@ export default function AppIndex() {
             </label>
           </div>
           {reportEnabled && (
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ fontSize: "0.8125rem", color: "#6d7175" }}>
+            <div style={{ marginBottom: "0.75rem", minWidth: 0 }}>
+              <label style={{ fontSize: "0.8125rem", color: "#6d7175", display: "block" }}>
                 {data.locale === "ja" ? "送信先メールアドレス" : "Email address"}
               </label>
               <input
