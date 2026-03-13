@@ -306,6 +306,59 @@ export default function AppSetup() {
         {data.locale === "ja" ? "設定" : "Setup"}
       </h1>
 
+      {/* セットアップの流れ：テーマブロック有効化を明示 */}
+      <section
+        style={{
+          ...sectionStyle,
+          marginTop: 0,
+          background: "#f0f4fa",
+          borderLeft: "4px solid #2c6ecb",
+        }}
+      >
+        <h2 style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: "0.75rem", color: "#1a1a1a" }}>
+          {t.setupFlowTitle}
+        </h2>
+        <ol style={{ ...listStyle, margin: "0 0 0.75rem 0", fontSize: "0.9375rem", lineHeight: 1.8 }}>
+          <li>{t.setupFlowStep1}</li>
+          <li>
+            <strong>{t.setupFlowStep2}</strong>
+            <ol style={{ ...listStyle, margin: "0.5rem 0 0", fontSize: "0.875rem" }}>
+              <li>{t.setup1}</li>
+              <li>{t.setup2}</li>
+              <li>{t.setup3}</li>
+            </ol>
+            <p style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", color: "#6d7175" }}>
+              {t.setupFlowThemeNote}
+            </p>
+          </li>
+        </ol>
+        <p style={{ margin: 0, fontSize: "0.8125rem", color: "#6d7175" }}>
+          {t.refExampleTitle}
+        </p>
+        <ul style={{ ...listStyle, margin: "0.5rem 0 0", fontSize: "0.875rem" }}>
+          <li>
+            <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
+              {t.andplusLlmsRef}
+            </a>
+          </li>
+          <li>
+            <a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
+              {t.andplusDocsAiRef}
+            </a>
+          </li>
+          <li>
+            <a href="https://www.andplus.co.jp/.ai-context" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
+              {t.andplusAiContextRef}
+            </a>
+          </li>
+          <li>
+            <a href="https://www.andplus.co.jp/sitemap-ai.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
+              {t.andplusSitemapRef}
+            </a>
+          </li>
+        </ul>
+      </section>
+
       {data.loaderError && (
         <p style={{ padding: "1rem", marginBottom: "1rem", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px", fontSize: "0.9375rem" }}>
           {t.error}: {data.loaderError}

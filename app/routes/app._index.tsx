@@ -556,39 +556,6 @@ export default function AppIndex() {
           </section>
         )}
 
-        {/* 設定導線 */}
-        <section style={{ ...sectionStyle, background: "#eff6ff", borderLeft: "3px solid #2c6ecb", marginTop: data.trialInfo.isSubscribed ? undefined : 0 }}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem", color: "#1e40af" }}>
-            {data.locale === "ja" ? "設定" : "Setup"}
-          </h2>
-          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
-            {data.locale === "ja"
-              ? "サイト情報・llms.txt・.ai-context・docs/ai を編集します。"
-              : "Edit site info, llms.txt, .ai-context, and docs/ai."}
-          </p>
-          <Link
-            to="/app/setup"
-            style={{ display: "inline-block", padding: "0.5rem 1rem", borderRadius: "6px", background: "#2c6ecb", color: "#fff", fontWeight: 600, textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            {data.locale === "ja" ? "設定する" : "Go to Setup"}
-          </Link>
-        </section>
-
-        <details style={{ ...sectionStyle, padding: "0.75rem 1rem" }}>
-          <summary style={{ fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer" }}>
-            {data.locale === "ja" ? "参考・セットアップ" : "Reference & Setup"}
-          </summary>
-          <ul style={{ ...listStyle, margin: "0.75rem 0 0 0", fontSize: "0.8125rem" }}>
-            <li><a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a></li>
-            <li><a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer">{t.andplusDocsAiRef}</a></li>
-          </ul>
-          <ol style={{ ...listStyle, margin: "0.5rem 0 0 0", fontSize: "0.8125rem" }}>
-            <li>{t.setup1}</li>
-            <li>{t.setup2}</li>
-            <li>{t.setup3}</li>
-          </ol>
-        </details>
-
         <section style={{ ...sectionStyle, background: "#f0fdf4", borderLeft: "3px solid #22c55e" }}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
             {data.locale === "ja" ? "週次レポート" : "Weekly Report"}
