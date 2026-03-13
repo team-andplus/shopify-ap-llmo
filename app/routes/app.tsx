@@ -55,13 +55,23 @@ export default function AppLayout() {
   );
 
   const path = location.pathname || "/app";
+  const search = location.search || "";
   const searchJa = new URLSearchParams(location.search);
   searchJa.set("locale", "ja");
   const searchEn = new URLSearchParams(location.search);
   searchEn.set("locale", "en");
 
+  const nav = (
+    <s-app-nav>
+      <Link to={`/app${search}`} rel="home">{t.navHome}</Link>
+      <Link to={`/app/access-log${search}`}>{t.navAiVisibility}</Link>
+      <Link to={`/app/billing${search}`}>{t.navBilling}</Link>
+    </s-app-nav>
+  );
+
   return (
     <AppProvider embedded apiKey={apiKey}>
+      {nav}
       {content}
       <footer
         style={{

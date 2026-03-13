@@ -1007,42 +1007,18 @@ export default function AppIndex() {
           {t.error}: {loaderError}
         </p>
       )}
-      <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
-        {t.appTitle}
-        <span style={{ marginLeft: "1rem", fontWeight: 400, fontSize: "0.875rem" }}>
-          <Link to="access-log" style={{ color: "var(--p-color-text-secondary, #6d7175)" }}>{t.accessLogNav}</Link>
-        </span>
-      </h1>
-      <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "0.25rem" }}>
-        {t.appDesc}
-      </p>
-      <p style={{ color: "#888", fontSize: "0.8125rem", marginBottom: "1rem" }}>
-        {t.appDescSub}
-      </p>
-
-      {/* このアプリの思想 */}
-      <section style={{ ...sectionStyle, borderLeft: "4px solid #2c6ecb" }}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.philosophyTitle}</h2>
-          <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
-          {(() => {
-            const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
-            const parts = t.philosophyBody.split(boldPhrase);
-            return (
-              <>
-                {parts[0]}
-                <strong>{boldPhrase}</strong>
-                {parts[1] ?? ""}
-              </>
-            );
-          })()}
+      {/* ヒーロー: 目的訴求 */}
+      <header style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem", fontWeight: 700 }}>{t.appTitle}</h1>
+        <p style={{ color: "#1a1a1a", fontSize: "1rem", marginBottom: "0.25rem", fontWeight: 500 }}>
+          {t.appDesc}
         </p>
-        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#6d7175", lineHeight: 1.6 }}>
-          {t.philosophyNote}{" "}
-          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
+        <p style={{ color: "#6d7175", fontSize: "0.875rem" }}>
+          {t.appDescSub}
         </p>
-      </section>
+      </header>
 
-      {/* 設定フォーム（思想・プロトコル：あんどぷらす llms.txt 参照） */}
+      {/* AI Guidance - llms.txt */}
       <section style={sectionStyle}>
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.llmsTxtSettings}</h2>
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
@@ -1569,6 +1545,28 @@ export default function AppIndex() {
           </p>
         )}
       </section>
+
+      {/* このアプリの思想（目的の後に配置） */}
+      <section style={{ ...sectionStyle, borderLeft: "4px solid #2c6ecb", marginTop: "2rem" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.philosophyTitle}</h2>
+        <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
+          {(() => {
+            const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
+            const parts = t.philosophyBody.split(boldPhrase);
+            return (
+              <>
+                {parts[0]}
+                <strong>{boldPhrase}</strong>
+                {parts[1] ?? ""}
+              </>
+            );
+          })()}
+        </p>
+        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#6d7175", lineHeight: 1.6 }}>
+          {t.philosophyNote}{" "}
+          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
+        </p>
+      </section>
       </main>
 
       <aside style={{ position: "sticky", top: "1rem" }}>
@@ -1738,53 +1736,20 @@ export default function AppIndex() {
           <p style={{ margin: 0, fontSize: "0.75rem", color: "#6d7175" }}>{t.sitemapCopyHint}</p>
         </section>
 
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.sidebarRefTitle}</h2>
-          <ul style={{ ...listStyle, margin: 0, fontSize: "0.875rem" }}>
-            <li>
-              <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
-            </li>
-            <li>
-              <a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer">{t.andplusDocsAiRef}</a>
-            </li>
+        <details style={{ ...sectionStyle, padding: "0.75rem 1rem" }}>
+          <summary style={{ fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer" }}>
+            {data.locale === "ja" ? "参考・セットアップ" : "Reference & Setup"}
+          </summary>
+          <ul style={{ ...listStyle, margin: "0.75rem 0 0 0", fontSize: "0.8125rem" }}>
+            <li><a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a></li>
+            <li><a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer">{t.andplusDocsAiRef}</a></li>
           </ul>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.guideReadmeTitle}</h2>
-          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>{t.guideReadmeIntro}</p>
-          <ul style={{ ...listStyle, margin: 0, fontSize: "0.8125rem", lineHeight: 1.6 }}>
-            <li>{t.guideReadmeWelcome}</li>
-            <li>{t.guideReadmePrimary}</li>
-            <li>{t.guideReadmeExternal}</li>
-            <li>{t.guideReadmeGuidelines}</li>
-          </ul>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.whatThisAppDoes}</h2>
-          <ul style={listStyle}>
-            <li>
-              {t.whatThisAppDoesList1.split(/(<head>)/i).map((part, i) =>
-                part.toLowerCase() === "<head>" ? <code key={i}>&lt;head&gt;</code> : part
-              )}
-            </li>
-          </ul>
-          <ul style={{ ...listStyle, marginTop: "0.5rem" }}>
-            <li><strong>llms.txt</strong> — {t.llmsTxtItem}</li>
-            <li><strong>llms.full.txt</strong> — {t.llmsFullTxtItem}</li>
-            <li><strong>docs/ai/*.md</strong> — {t.docsAiItem}</li>
-          </ul>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.setupTitle}</h2>
-          <ol style={listStyle}>
+          <ol style={{ ...listStyle, margin: "0.5rem 0 0 0", fontSize: "0.8125rem" }}>
             <li>{t.setup1}</li>
             <li>{t.setup2}</li>
             <li>{t.setup3}</li>
           </ol>
-        </section>
+        </details>
 
         <section style={{ ...sectionStyle, background: "#f0fdf4", borderLeft: "3px solid #22c55e" }}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
