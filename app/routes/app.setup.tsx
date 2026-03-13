@@ -368,6 +368,24 @@ export default function AppSetup() {
           line-height: 1.5;
         }
         .app-setup-grid .error-box:first-child { margin-top: 0; }
+        /* 入力フィールド・テキストエリア共通（親の枠を超えない） */
+        .app-setup-grid .input-field,
+        .app-setup-grid .textarea-field {
+          box-sizing: border-box;
+          display: block;
+          width: 100%;
+          max-width: 480px;
+          min-width: 0;
+          margin-top: 0.25rem;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid #c9cccf;
+          border-radius: 6px;
+          font-size: 0.9375rem;
+        }
+        .app-setup-grid .textarea-field {
+          min-height: 140px;
+          resize: vertical;
+        }
       `}</style>
       <main style={{ minWidth: 0 }}>
       <p style={{ marginBottom: "1rem" }}>
@@ -474,7 +492,7 @@ export default function AppSetup() {
 
           <label style={labelStyle}>
             {t.siteType}
-            <select name="siteType" style={inputStyle} defaultValue={data.settings.siteType}>
+            <select name="siteType" className="input-field" style={inputStyle} defaultValue={data.settings.siteType}>
               <option value="corporate">{t.siteTypeCorporate}</option>
               <option value="ec">{t.siteTypeEc}</option>
               <option value="corporate_ec">{t.siteTypeCorporateEc}</option>
@@ -486,6 +504,7 @@ export default function AppSetup() {
             <input
               type="text"
               name="title"
+              className="input-field"
               style={inputStyle}
               defaultValue={data.settings.title}
               placeholder={t.titlePlaceholder}
@@ -496,6 +515,7 @@ export default function AppSetup() {
             {t.roleSummaryLabel}
             <textarea
               name="roleSummary"
+              className="textarea-field"
               style={textareaStyle}
               defaultValue={data.settings.roleSummary}
               placeholder={t.roleSummaryPlaceholder}
@@ -506,6 +526,7 @@ export default function AppSetup() {
             {t.sectionsOutlineLabel}
             <textarea
               name="sectionsOutline"
+              className="textarea-field"
               style={textareaStyle}
               defaultValue={data.settings.sectionsOutline}
               placeholder={t.sectionsOutlinePlaceholder}
@@ -516,6 +537,7 @@ export default function AppSetup() {
             {t.notesForAiLabel}
             <textarea
               name="notesForAi"
+              className="textarea-field"
               style={textareaStyle}
               defaultValue={data.settings.notesForAi}
               placeholder={t.notesForAiPlaceholder}
@@ -527,6 +549,7 @@ export default function AppSetup() {
             <input
               type="text"
               name="industry"
+              className="input-field"
               style={inputStyle}
               placeholder={t.industryPlaceholder}
             />
@@ -536,6 +559,7 @@ export default function AppSetup() {
             <input
               type="text"
               name="target"
+              className="input-field"
               style={inputStyle}
               placeholder={t.targetPlaceholder}
             />
@@ -545,6 +569,7 @@ export default function AppSetup() {
             <input
               type="text"
               name="productType"
+              className="input-field"
               style={inputStyle}
               placeholder={t.productTypePlaceholder}
             />
@@ -555,6 +580,7 @@ export default function AppSetup() {
             <input
               type="password"
               name="openaiApiKey"
+              className="input-field"
               style={inputStyle}
               placeholder={t.openaiApiKeyPlaceholder}
               autoComplete="off"
@@ -570,15 +596,16 @@ export default function AppSetup() {
             <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.docsAiSectionTitle}</h3>
             <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>{t.docsAiSectionNote}</p>
             {docsRows.map((row, i) => (
-              <div key={i} style={{ marginBottom: "1rem", padding: "0.75rem", background: "#fff", borderRadius: "6px", border: "1px solid #e1e3e5" }}>
+              <div key={i} style={{ marginBottom: "1rem", padding: "0.75rem", background: "#fff", borderRadius: "6px", border: "1px solid #e1e3e5", minWidth: 0 }}>
                 <input type="hidden" name={`docsAiFileId_${i}`} value={row.fileId ?? ""} />
                 <input type="hidden" name={`docsAiFileUrl_${i}`} value={row.fileUrl ?? ""} />
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <label style={{ ...labelStyle, marginTop: 0, flex: "1 1 auto" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem", minWidth: 0 }}>
+                  <label style={{ ...labelStyle, marginTop: 0, flex: "1 1 auto", minWidth: 0 }}>
                     {t.docsAiFilename}
                     <input
                       type="text"
                       name={`docsAiFilename_${i}`}
+                      className="input-field"
                       style={inputStyle}
                       defaultValue={row.filename}
                       placeholder={t.docsAiFilenamePlaceholder}
@@ -593,10 +620,11 @@ export default function AppSetup() {
                     {t.removeRow}
                   </button>
                 </div>
-                <label style={{ ...labelStyle, marginTop: "0.5rem" }}>
+                <label style={{ ...labelStyle, marginTop: "0.5rem", minWidth: 0 }}>
                   {t.docsAiContent}
                   <textarea
                     name={`docsAiContent_${i}`}
+                    className="textarea-field"
                     style={textareaStyle}
                     defaultValue={row.content}
                   />
@@ -624,6 +652,7 @@ export default function AppSetup() {
               ref={llmsTxtBodyRef}
               name="llmsTxtBody"
               form="llmo-form"
+              className="textarea-field"
               style={textareaStyle}
               defaultValue={data.settings.llmsTxtBody}
               placeholder={t.llmsTxtBodyPlaceholder}
@@ -665,11 +694,12 @@ export default function AppSetup() {
                 ? "上の llms.txt 本文をベースに、修正希望を書いて「この内容で再生成」を押すと、AI が修正版を生成します。"
                 : "Enter what you want to change about the llms.txt body above, then click the button to regenerate."}
             </p>
-            <label style={{ ...labelStyle, marginTop: "0.5rem" }}>
+            <label style={{ ...labelStyle, marginTop: "0.5rem", minWidth: 0 }}>
               {t.refinementNoteLabel}
               <input
                 ref={refinementNoteRef}
                 type="text"
+                className="input-field"
                 style={inputStyle}
                 placeholder={t.refinementNotePlaceholder}
                 disabled={isRefining}
@@ -866,6 +896,7 @@ export default function AppSetup() {
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.5rem" }}>{t.aiContextBodyHint}</p>
         <textarea
           name="aiContextBody"
+          className="textarea-field"
           value={aiContextBody}
           onChange={(e) => setAiContextBody(e.target.value)}
           rows={12}
@@ -911,6 +942,7 @@ export default function AppSetup() {
             <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.refinementSectionTitle}</h3>
             <label style={labelStyle}>{t.refinementNoteLabel}</label>
             <textarea
+              className="textarea-field"
               value={aiContextRefinementNote}
               onChange={(e) => setAiContextRefinementNote(e.target.value)}
               rows={3}
