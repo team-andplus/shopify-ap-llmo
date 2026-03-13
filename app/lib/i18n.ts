@@ -10,6 +10,10 @@ export const translations = {
     appTitle: "AP LLMO",
     appDesc: "AI 検索（ChatGPT、Perplexity など）にストアを最適化するアプリです。",
     appDescSub: "AI があなたのストアを正しく理解できるようにします。コーディング不要。",
+    appHeroWhy:
+      "AI 検索（ChatGPT・Perplexity など）でストアが引用されるとき、正しい情報を渡すためのアプリです。",
+    appHeroHow:
+      "llms.txt と .ai-context で一次情報と解釈ルールを AI に伝え、誇張・捏造を防ぎます。コーディング不要。",
     philosophyTitle: "このアプリの思想",
     philosophyBody:
       "AI に対する私たちの思想は「嘘をつかせない」に集約されます。事実・証拠を優先し、誇張や捏造を避けることで、LLM がストア情報を扱うときの解釈と生成を適切に導きます。",
@@ -185,6 +189,10 @@ export const translations = {
     appTitle: "AP LLMO",
     appDesc: "Optimize your store for AI search (ChatGPT, Perplexity, etc.)",
     appDescSub: "Help AI understand your Shopify store. No coding required.",
+    appHeroWhy:
+      "When AI search (ChatGPT, Perplexity, etc.) cites your store, this app helps you serve correct information.",
+    appHeroHow:
+      "Use llms.txt and .ai-context to give AI your first-party facts and interpretation rules—no coding required.",
     philosophyTitle: "This app's philosophy",
     philosophyBody:
       'Our philosophy toward AI is "don\'t let it tell lies": we prioritize facts and evidence and avoid exaggeration or fabrication, so that LLMs interpret and generate store information appropriately.',

@@ -352,19 +352,54 @@ export default function AppIndex() {
           {t.error}: {loaderError}
         </p>
       )}
-      {/* ヒーロー: 目的訴求 */}
-      <header style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem", fontWeight: 700 }}>{t.appTitle}</h1>
-        <p style={{ color: "#1a1a1a", fontSize: "1rem", marginBottom: "0.25rem", fontWeight: 500 }}>
-          {t.appDesc}
+      {/* ヒーロー: なんのためのアプリか・訴求 */}
+      <header style={{ marginBottom: "1rem" }}>
+        <h1 style={{ fontSize: "1.75rem", marginBottom: "0.75rem", fontWeight: 700, color: "#1a1a1a" }}>
+          {t.appTitle}
+        </h1>
+        <p style={{ color: "#1a1a1a", fontSize: "1.0625rem", marginBottom: "0.5rem", lineHeight: 1.6, fontWeight: 500 }}>
+          {t.appHeroWhy}
         </p>
-        <p style={{ color: "#6d7175", fontSize: "0.875rem" }}>
-          {t.appDescSub}
+        <p style={{ color: "#4a4a4a", fontSize: "0.9375rem", lineHeight: 1.6 }}>
+          {t.appHeroHow}
         </p>
       </header>
 
+      {/* 思想: トップに置いてアプリの価値観を伝える */}
+      <section
+        style={{
+          ...sectionStyle,
+          marginTop: "0.5rem",
+          borderLeft: "4px solid #2c6ecb",
+          background: "#f0f4fa",
+        }}
+      >
+        <h2 style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: "0.5rem", color: "#1a1a1a" }}>
+          {t.philosophyTitle}
+        </h2>
+        <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.75, color: "#333" }}>
+          {(() => {
+            const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
+            const parts = t.philosophyBody.split(boldPhrase);
+            return (
+              <>
+                {parts[0]}
+                <strong style={{ color: "#1a1a1a" }}>{boldPhrase}</strong>
+                {parts[1] ?? ""}
+              </>
+            );
+          })()}
+        </p>
+        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.6 }}>
+          {t.philosophyNote}{" "}
+          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
+            {t.andplusLlmsRef}
+          </a>
+        </p>
+      </section>
+
       {/* CTA */}
-      <section style={{ ...sectionStyle, marginTop: "0.5rem" }}>
+      <section style={{ ...sectionStyle, marginTop: "1rem" }}>
         <p style={{ marginBottom: "0.75rem", fontSize: "1rem", lineHeight: 1.6 }}>
           {data.locale === "ja"
             ? "AI がストアを正しく理解するために、llms.txt や .ai-context を設定します。"
