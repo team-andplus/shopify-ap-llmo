@@ -298,7 +298,6 @@ export default function AppIndex() {
   const [reportEnabled, setReportEnabled] = useState(data.settings.reportEnabled);
 
   const docsAiCount = data.settings.docsAiFiles?.length ?? 0;
-  const llmsTxtSet = Boolean(data.settings.llmsTxtFileUrl?.trim());
   const loaderError = (data as { loaderError?: string | null }).loaderError;
 
   const isAnyLoading = isSavingReport || isSendingTestEmail || isRunningCronJob;
@@ -458,10 +457,6 @@ export default function AppIndex() {
         <p style={{ margin: "0 0 1rem 0", fontSize: "0.8125rem", color: "#6d7175", lineHeight: 1.5 }}>
           {t.generatedFilesDesc}
         </p>
-        <ul style={{ ...listStyle, marginBottom: "1rem", fontSize: "0.875rem" }}>
-          <li>{llmsTxtSet ? t.statusLlmsTxtSet : t.statusLlmsTxtNotSet}</li>
-          <li>{t.statusDocsAiCount.replace("{count}", String(docsAiCount))}</li>
-        </ul>
         <div style={{ fontSize: "0.8125rem", lineHeight: 2 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.25rem" }}>
             <span style={{ fontWeight: 600 }}>llms.txt</span>

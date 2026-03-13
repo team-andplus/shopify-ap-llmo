@@ -189,7 +189,7 @@ export const translations = {
     aiBotRecentAccess: "AI ボットの直近アクセス",
     aiBotService: "サービス",
     aiBotName: "ボット名",
-    aiBotNoData: "AI ボットからのアクセスはまだありません。llms.txt 等を設置すると AI クローラーが訪問する可能性があります。",
+    aiBotNoData: "AI ボットからのアクセスはまだありません。llms.txt 等を設置しておくと、AI がサイトを訪問したときに正しく理解しやすくなります。",
     aiBotHighlight: "AI が見に来ています！",
     aiBotDetectionList: "検出対象の AI ボット一覧を見る",
     // AI Visibility ダッシュボード
@@ -199,7 +199,7 @@ export const translations = {
     aiVisitsTotal: "総アクセス",
     viewDetails: "詳細を見る",
     noAiVisitsYet: "AI アクセスはまだありません",
-    noAiVisitsHint: "llms.txt を設置すると AI クローラーが訪問します",
+    noAiVisitsHint: "llms.txt を設置しておくと、AI がサイトを訪問したときに正しく理解しやすくなります。",
     // Generated Files
     generatedFilesTitle: "生成されたファイル",
     generatedFilesDesc: "AI がストアを理解するためのファイル群",
@@ -389,7 +389,7 @@ export const translations = {
     aiBotRecentAccess: "Recent AI bot access",
     aiBotService: "Service",
     aiBotName: "Bot name",
-    aiBotNoData: "No AI bot access yet. Once you set up llms.txt etc., AI crawlers may visit.",
+    aiBotNoData: "No AI bot access yet. Setting up llms.txt etc. helps AI systems understand your store when they visit.",
     aiBotHighlight: "AI is visiting!",
     aiBotDetectionList: "View list of detectable AI bots",
     // AI Visibility dashboard
@@ -399,7 +399,7 @@ export const translations = {
     aiVisitsTotal: "Total visits",
     viewDetails: "View details",
     noAiVisitsYet: "No AI visits yet",
-    noAiVisitsHint: "Set up llms.txt and AI crawlers will discover your store",
+    noAiVisitsHint: "Setting up llms.txt helps AI systems understand your store when they visit.",
     // Generated Files
     generatedFilesTitle: "Generated Files",
     generatedFilesDesc: "Files for AI to understand your store",
