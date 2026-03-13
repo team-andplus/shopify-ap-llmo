@@ -28,7 +28,7 @@ const sectionStyle = {
 
 export default function AccessLogPage() {
   const { aggregates, locale, t, aiBotPatterns } = useLoaderData<typeof loader>();
-  const { total, byShop, byPath, byDate, recent, aiBotTotal, aiBotByService, aiBotByBot, aiBotRecent } = aggregates;
+  const { total, byPath, byDate, recent, dateRange, recentMax, aiBotTotal, aiBotByService, aiBotByBot, aiBotRecent } = aggregates;
 
   return (
     <div className="access-log-page" style={{ padding: "2rem", maxWidth: "960px", minWidth: 0 }}>
@@ -212,7 +212,13 @@ export default function AccessLogPage() {
               <strong>{t.totalRequests}:</strong> {total}
             </p>
 
-            {/* ストア別・パス別・日付別・Bot別を 2x2 で並べる */}
+            {dateRange && (
+              <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
+                {t.accessLogDateRange}: {dateRange.min} ～ {dateRange.max}
+              </p>
+            )}
+
+            {/* パス別・日付別・Bot別を 2x2 風（3ブロック）で並べる（ストア別は自ストアのみのため省略） */}
             <div
               className="grid-2x2"
               style={{
@@ -222,25 +228,6 @@ export default function AccessLogPage() {
                 marginBottom: "1.5rem",
               }}
             >
-              <div className="mini-table-wrap">
-                <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byShop}</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t.accessLogShop}</th>
-                      <th style={{ width: "4.5rem" }}>{t.accessLogCount}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortByCount(Object.entries(byShop)).map(([s, count]) => (
-                      <tr key={s}>
-                        <td>{s || "(空)"}</td>
-                        <td>{count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
               <div className="mini-table-wrap">
                 <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.byPath}</h3>
                 <table>
@@ -281,9 +268,9 @@ export default function AccessLogPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mini-table-wrap">
+              <div className="mini-table-wrap" style={{ gridColumn: "1 / -1" }}>
                 <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.aiBotByBot}</h3>
-                <table>
+                <table style={{ maxWidth: "24rem" }}>
                   <thead>
                     <tr>
                       <th>{t.aiBotName}</th>
@@ -302,7 +289,10 @@ export default function AccessLogPage() {
               </div>
             </div>
 
-            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.recentAccess}</h3>
+            <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.recentAccess}</h3>
+            <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.5rem" }}>
+              {t.accessLogRecentLimit.replace("{n}", String(recentMax))}
+            </p>
             <div style={{ overflowX: "auto" }}>
               <table className="cols-auto">
                 <thead>

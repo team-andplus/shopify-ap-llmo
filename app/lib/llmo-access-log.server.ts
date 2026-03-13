@@ -103,6 +103,10 @@ export type LlmoAccessLogAggregates = {
   byPath: Record<string, number>;
   byDate: Record<string, number>;
   recent: LlmoAccessLogEntry[];
+  /** 集計対象の日付範囲（ログに含まれる最小・最大日付） */
+  dateRange: { min: string; max: string } | null;
+  /** 直近アクセス・AIボット直近の最大表示件数 */
+  recentMax: number;
   // AI ボット関連
   aiBotTotal: number;
   aiBotByService: Record<string, number>;
@@ -116,6 +120,8 @@ const emptyAggregates: LlmoAccessLogAggregates = {
   byPath: {},
   byDate: {},
   recent: [],
+  dateRange: null,
+  recentMax: RECENT_MAX,
   aiBotTotal: 0,
   aiBotByService: {},
   aiBotByBot: {},
@@ -200,12 +206,18 @@ export async function readAndAggregateLlmoAccessLog(
   aiBotRecent.reverse();
   if (aiBotRecent.length > RECENT_MAX) aiBotRecent.length = RECENT_MAX;
 
+  const dates = Object.keys(byDate).filter(Boolean).sort();
+  const dateRange =
+    dates.length > 0 ? { min: dates[0]!, max: dates[dates.length - 1]! } : null;
+
   return {
     total,
     byShop,
     byPath,
     byDate,
     recent,
+    dateRange,
+    recentMax: RECENT_MAX,
     aiBotTotal,
     aiBotByService,
     aiBotByBot,
