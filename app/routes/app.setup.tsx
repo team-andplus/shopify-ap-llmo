@@ -295,8 +295,27 @@ export default function AppSetup() {
 
   const isAnyLoading = isSaving || isPromptLoading || isAiGenerating || isRefining || isGeneratingFullTxt || isGeneratingAiContext || isRefiningAiContext || isSavingAiContext;
 
+  const setupNavStyle = { display: "block", fontSize: "0.875rem", color: "#2c6ecb", textDecoration: "none", marginBottom: "0.5rem" };
+  const asideSectionStyle = { ...sectionStyle, marginTop: "1rem", padding: "0.75rem 1rem" };
+
   return (
-    <div style={{ padding: "2rem", maxWidth: "900px" }}>
+    <div
+      className="app-setup-grid"
+      style={{
+        padding: "2rem",
+        maxWidth: "1200px",
+        display: "grid",
+        gridTemplateColumns: "1fr minmax(220px, 260px)",
+        gap: "2rem",
+        alignItems: "start",
+      }}
+    >
+      <style>{`
+        @media (max-width: 900px) {
+          .app-setup-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      <main style={{ minWidth: 0 }}>
       <p style={{ marginBottom: "1rem" }}>
         <Link to="/app" style={{ color: "#2c6ecb", textDecoration: "underline", fontSize: "0.9375rem" }}>
           ← {data.locale === "ja" ? "アプリに戻る" : "Back to app"}
@@ -308,6 +327,7 @@ export default function AppSetup() {
 
       {/* セットアップの流れ：テーマブロック有効化を明示 */}
       <section
+        id="setup-flow"
         style={{
           ...sectionStyle,
           marginTop: 0,
@@ -332,31 +352,6 @@ export default function AppSetup() {
             </p>
           </li>
         </ol>
-        <p style={{ margin: 0, fontSize: "0.8125rem", color: "#6d7175" }}>
-          {t.refExampleTitle}
-        </p>
-        <ul style={{ ...listStyle, margin: "0.5rem 0 0", fontSize: "0.875rem" }}>
-          <li>
-            <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
-              {t.andplusLlmsRef}
-            </a>
-          </li>
-          <li>
-            <a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
-              {t.andplusDocsAiRef}
-            </a>
-          </li>
-          <li>
-            <a href="https://www.andplus.co.jp/.ai-context" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
-              {t.andplusAiContextRef}
-            </a>
-          </li>
-          <li>
-            <a href="https://www.andplus.co.jp/sitemap-ai.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>
-              {t.andplusSitemapRef}
-            </a>
-          </li>
-        </ul>
       </section>
 
       {data.loaderError && (
@@ -395,8 +390,8 @@ export default function AppSetup() {
         @keyframes ap-llmo-spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {/* AI Guidance - llms.txt */}
-      <section style={sectionStyle}>
+      {/* AI Guidance - llms.txt（サイト情報・docs/ai・API Key 含む） */}
+      <section id="site-llms" style={sectionStyle}>
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.llmsTxtSettings}</h2>
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
           {t.llmsTxtSettingsNote}{" "}
@@ -749,7 +744,7 @@ export default function AppSetup() {
       )}
 
       {/* llms.full.txt */}
-      <section style={{ ...sectionStyle, marginTop: "2rem", borderLeft: "4px solid #008060" }}>
+      <section id="llms-full" style={{ ...sectionStyle, marginTop: "2rem", borderLeft: "4px solid #008060" }}>
         <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.llmsFullTxtSectionTitle}</h2>
         <p style={{ fontSize: "0.875rem", color: "#6d7175", marginBottom: "1rem", lineHeight: 1.6 }}>
           {t.llmsFullTxtDesc}
@@ -811,7 +806,7 @@ export default function AppSetup() {
       </section>
 
       {/* .ai-context */}
-      <section style={sectionStyle}>
+      <section id="ai-context" style={sectionStyle}>
         <h2 style={{ fontSize: "1.0625rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.aiContextSectionTitle}</h2>
         <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "1rem" }}>{t.aiContextDesc}</p>
 
@@ -918,28 +913,48 @@ export default function AppSetup() {
           </p>
         )}
       </section>
+      </main>
 
-      {/* philosophy */}
-      <section style={{ ...sectionStyle, borderLeft: "4px solid #2c6ecb", marginTop: "2rem" }}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.philosophyTitle}</h2>
-        <p style={{ margin: 0, fontSize: "0.9375rem", lineHeight: 1.7 }}>
-          {(() => {
-            const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
-            const parts = t.philosophyBody.split(boldPhrase);
-            return (
-              <>
-                {parts[0]}
-                <strong>{boldPhrase}</strong>
-                {parts[1] ?? ""}
-              </>
-            );
-          })()}
-        </p>
-        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#6d7175", lineHeight: 1.6 }}>
-          {t.philosophyNote}{" "}
-          <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer">{t.andplusLlmsRef}</a>
-        </p>
-      </section>
+      <aside style={{ position: "sticky", top: "1rem" }}>
+        <nav style={asideSectionStyle}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            {data.locale === "ja" ? "このページの項目" : "Sections"}
+          </h2>
+          <a href="#setup-flow" style={setupNavStyle}>{t.setupFlowTitle}</a>
+          <a href="#site-llms" style={setupNavStyle}>{t.llmsTxtSettings}</a>
+          <a href="#llms-full" style={setupNavStyle}>{t.llmsFullTxtSectionTitle}</a>
+          <a href="#ai-context" style={setupNavStyle}>{t.aiContextSectionTitle}</a>
+        </nav>
+        <section style={{ ...asideSectionStyle, background: "#f9fafb", borderLeft: "3px solid #2c6ecb" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.refExampleTitle}</h2>
+          <ul style={{ ...listStyle, margin: 0, fontSize: "0.8125rem", lineHeight: 1.8 }}>
+            <li><a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusLlmsRef}</a></li>
+            <li><a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusDocsAiRef}</a></li>
+            <li><a href="https://www.andplus.co.jp/.ai-context" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusAiContextRef}</a></li>
+            <li><a href="https://www.andplus.co.jp/sitemap-ai.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusSitemapRef}</a></li>
+          </ul>
+        </section>
+        <section style={{ ...asideSectionStyle, background: "#f0f4fa", borderLeft: "4px solid #2c6ecb" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.philosophyTitle}</h2>
+          <p style={{ margin: 0, fontSize: "0.8125rem", lineHeight: 1.7 }}>
+            {(() => {
+              const boldPhrase = data.locale === "en" ? "don't let it tell lies" : "嘘をつかせない";
+              const parts = t.philosophyBody.split(boldPhrase);
+              return (
+                <>
+                  {parts[0]}
+                  <strong>{boldPhrase}</strong>
+                  {parts[1] ?? ""}
+                </>
+              );
+            })()}
+          </p>
+          <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.75rem", color: "#6d7175", lineHeight: 1.6 }}>
+            {t.philosophyNote}{" "}
+            <a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", fontSize: "inherit" }}>{t.andplusLlmsRef}</a>
+          </p>
+        </section>
+      </aside>
     </div>
   );
 }
