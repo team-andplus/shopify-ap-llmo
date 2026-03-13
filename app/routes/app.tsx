@@ -1,10 +1,85 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, Outlet, useLoaderData, useLocation, useOutlet, useRouteError, redirect } from "react-router";
+import { Link, useLoaderData, useLocation, useNavigate, useOutlet, useRouteError, redirect } from "react-router";
+import { useEffect, useRef } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { getAppRedirectBase } from "../lib/redirect-url.server";
 import { getLocaleFromRequest, getTranslations } from "../lib/i18n";
+
+/** ブラウザのパス基準（basename 相当） */
+const APP_PATH = "/andplus-apps/shopify-ap-llmo";
+
+/**
+ * ブラウザの実際の URL と React Router を同期する。
+ * s-app-nav 等で URL だけ変わり描画が切り替わらない場合に、pathname+search で navigate し直す。
+ */
+function useUrlSync() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const lastSynced = useRef<string>("");
+
+  useEffect(() => {
+    function getWindowRouterPath(): string {
+      if (typeof window === "undefined") return "";
+      const p = window.location.pathname;
+      const search = window.location.search || "";
+      const pathAfterBase =
+        p.startsWith(APP_PATH) && p.length > APP_PATH.length
+          ? p.slice(APP_PATH.length) || "/"
+          : p.startsWith(APP_PATH)
+            ? "/"
+            : p;
+      const path = pathAfterBase.startsWith("/") ? pathAfterBase : `/${pathAfterBase}`;
+      return path + search;
+    }
+
+    function syncFromWindow() {
+      const windowPath = getWindowRouterPath();
+      const routerPath = location.pathname + location.search;
+      if (windowPath && windowPath !== routerPath && windowPath !== lastSynced.current) {
+        lastSynced.current = windowPath;
+        navigate(windowPath, { replace: true });
+      }
+    }
+
+    const handleNavigate = (e: Event) => {
+      e.stopImmediatePropagation?.();
+      const ev = e as CustomEvent<{ url?: string }> & { target?: { href?: string; getAttribute?(a: string): string | null } };
+      const href =
+        ev.detail?.url ??
+        (typeof ev.target?.getAttribute === "function" ? ev.target.getAttribute("href") : null) ??
+        ev.target?.href ??
+        "";
+      if (!href || href.startsWith("javascript:")) return;
+      try {
+        const url = href.startsWith("/") ? new URL(href, window.location.origin) : new URL(href);
+        const pathAfterBase = url.pathname.startsWith(APP_PATH)
+          ? url.pathname.slice(APP_PATH.length) || "/"
+          : url.pathname;
+        const path = pathAfterBase.startsWith("/") ? pathAfterBase : `/${pathAfterBase}`;
+        const to = path + (url.search || "");
+        if (to && to !== location.pathname + location.search) {
+          lastSynced.current = to;
+          navigate(to, { replace: true });
+        }
+      } catch {
+        if (href.startsWith("/") && href !== location.pathname + location.search) {
+          lastSynced.current = href;
+          navigate(href, { replace: true });
+        }
+      }
+    };
+
+    syncFromWindow();
+    document.addEventListener("shopify:navigate", handleNavigate);
+    const interval = setInterval(syncFromWindow, 400);
+    return () => {
+      document.removeEventListener("shopify:navigate", handleNavigate);
+      clearInterval(interval);
+    };
+  }, [location.pathname, location.search, navigate]);
+}
 
 /** App Bridge Next が shop を読むために head に meta を出す（script より前に必要） */
 export function meta({
@@ -50,6 +125,8 @@ export default function AppLayout() {
   const location = useLocation();
   const outlet = useOutlet();
   const t = getTranslations(locale);
+
+  useUrlSync();
   const content = outlet ?? (
     <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
   );
