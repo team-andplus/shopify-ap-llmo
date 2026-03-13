@@ -13,11 +13,14 @@ const APP_PATH = "/andplus-apps/shopify-ap-llmo";
 /**
  * ブラウザの実際の URL と React Router を同期する。
  * s-app-nav 等で URL だけ変わり描画が切り替わらない場合に、pathname+search で navigate し直す。
+ * リロード直後は親が先にURLを変えることがあるため、マウント直後に短い間隔で複数回 sync する。
  */
 function useUrlSync() {
   const location = useLocation();
   const navigate = useNavigate();
   const lastSynced = useRef<string>("");
+  const locationRef = useRef(location.pathname + location.search);
+  locationRef.current = location.pathname + location.search;
 
   useEffect(() => {
     function getWindowRouterPath(): string {
@@ -36,7 +39,7 @@ function useUrlSync() {
 
     function syncFromWindow() {
       const windowPath = getWindowRouterPath();
-      const routerPath = location.pathname + location.search;
+      const routerPath = locationRef.current;
       if (windowPath && windowPath !== routerPath && windowPath !== lastSynced.current) {
         lastSynced.current = windowPath;
         navigate(windowPath, { replace: true });
@@ -59,12 +62,12 @@ function useUrlSync() {
           : url.pathname;
         const path = pathAfterBase.startsWith("/") ? pathAfterBase : `/${pathAfterBase}`;
         const to = path + (url.search || "");
-        if (to && to !== location.pathname + location.search) {
+        if (to && to !== locationRef.current) {
           lastSynced.current = to;
           navigate(to, { replace: true });
         }
       } catch {
-        if (href.startsWith("/") && href !== location.pathname + location.search) {
+        if (href.startsWith("/") && href !== locationRef.current) {
           lastSynced.current = href;
           navigate(href, { replace: true });
         }
@@ -72,13 +75,18 @@ function useUrlSync() {
     };
 
     syncFromWindow();
-    document.addEventListener("shopify:navigate", handleNavigate);
-    const interval = setInterval(syncFromWindow, 400);
+    const earlySyncDelays = [0, 80, 200, 500];
+    const earlySyncIds = earlySyncDelays.map((ms) =>
+      setTimeout(syncFromWindow, ms)
+    );
+    document.addEventListener("shopify:navigate", handleNavigate, true);
+    const interval = setInterval(syncFromWindow, 250);
     return () => {
-      document.removeEventListener("shopify:navigate", handleNavigate);
+      earlySyncIds.forEach((id) => clearTimeout(id));
+      document.removeEventListener("shopify:navigate", handleNavigate, true);
       clearInterval(interval);
     };
-  }, [location.pathname, location.search, navigate]);
+  }, [navigate]);
 }
 
 /** App Bridge Next が shop を読むために head に meta を出す（script より前に必要） */
