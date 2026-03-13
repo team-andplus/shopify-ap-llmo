@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, useLoaderData, useLocation, useNavigate, useOutlet, useRouteError, redirect } from "react-router";
+import { Link, Outlet, useLoaderData, useLocation, useNavigate, useRouteError, redirect } from "react-router";
 import { useEffect, useRef } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
@@ -123,13 +123,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function AppLayout() {
   const { apiKey, locale } = useLoaderData<typeof loader>();
   const location = useLocation();
-  const outlet = useOutlet();
   const t = getTranslations(locale);
 
   useUrlSync();
-  const content = outlet ?? (
-    <div style={{ padding: "2rem", fontSize: "1.25rem" }}>てすとだよ</div>
-  );
 
   const path = location.pathname || "/app";
   const search = location.search || "";
@@ -150,7 +146,7 @@ export default function AppLayout() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       {nav}
-      {content}
+      <Outlet />
       <footer
         style={{
           marginTop: "var(--p-space-800, 2rem)",
