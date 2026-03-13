@@ -205,34 +205,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // テストメール送信
+  // テストメール送信（週次レポートと同じ形式のサンプルを送る）
   if (intent === "testEmail") {
     try {
       const { sendEmail } = await import("../lib/email.server");
+      const { generateSampleReportHtml } = await import("../lib/cron.server");
       const testEmail = (formData.get("testEmail") as string)?.trim();
       if (!testEmail) {
         return Response.json({ ok: false, error: "Email address required" }, { status: 400 });
       }
       const locale = getLocaleFromRequest(request);
       const isJa = locale === "ja";
+      const sampleNote = isJa
+        ? '<p style="background:#fef3c7;padding:0.75rem;border-radius:6px;margin-bottom:1rem;font-size:0.875rem;">これは実際に毎週送られるレポートのサンプルです。数値はダミーです。</p>'
+        : '<p style="background:#fef3c7;padding:0.75rem;border-radius:6px;margin-bottom:1rem;font-size:0.875rem;">This is a sample of the weekly report you will receive. The numbers are dummy data.</p>';
+      const reportHtml = generateSampleReportHtml(shop, isJa);
+      const html = reportHtml.replace("<body>", "<body>" + sampleNote);
       const result = await sendEmail({
         to: testEmail,
-        subject: isJa ? "[AP LLMO] テストメール" : "[AP LLMO] Test Email",
-        html: isJa
-          ? `
-            <h1>テストメール</h1>
-            <p>AP LLMO からのメール送信テストです。</p>
-            <p>このメールが届いていれば、SMTP 設定は正常です。</p>
-            <p>Store: ${shop}</p>
-            <p>Time: ${new Date().toISOString()}</p>
-          `
-          : `
-            <h1>Test Email</h1>
-            <p>This is a test email from AP LLMO.</p>
-            <p>If you received this email, your SMTP settings are working correctly.</p>
-            <p>Store: ${shop}</p>
-            <p>Time: ${new Date().toISOString()}</p>
-          `,
+        subject: isJa ? "🤖 AI があなたのストアを訪問しました - サンプル" : "🤖 AI systems visited your store - Sample report",
+        html,
       });
       return Response.json({ ok: result.success, error: result.error });
     } catch (err) {

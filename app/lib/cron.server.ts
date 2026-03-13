@@ -379,3 +379,16 @@ function generateReportHtml(shop: string, stats: WeeklyStats, isJa: boolean): st
 </html>
   `.trim();
 }
+
+/**
+ * 週次レポートのサンプル HTML（テストメール用・日英対応）
+ */
+export function generateSampleReportHtml(shop: string, isJa: boolean): string {
+  const stats: WeeklyStats = {
+    totalAccess: 47,
+    aiBotAccess: 14,
+    byBot: { GPTBot: 6, PerplexityBot: 4, "ClaudeBot": 3, "Google-Extended": 1 },
+    byPath: { "/llms.txt": 22, "/.ai-context": 12, "/docs/ai/README.md": 8, "/llms.full.txt": 5 },
+  };
+  return generateReportHtml(shop, stats, isJa);
+}
