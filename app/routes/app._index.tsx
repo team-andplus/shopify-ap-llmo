@@ -107,10 +107,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }).catch(() => {}); // エラーは無視（バックグラウンドで実行）
     }
 
-    // AI Visibility 用: AI ボットアクセス集計（サイドバー表示用）
+    // AI Visibility 用: AI ボットアクセス集計（直近7日間固定・サイドバー表示用）
     let aiVisibility = { aiBotTotal: 0, aiBotByService: {} as Record<string, number> };
     try {
-      const logData = await readAndAggregateLlmoAccessLog(shop);
+      const logData = await readAndAggregateLlmoAccessLog(shop, "7d");
       aiVisibility = {
         aiBotTotal: logData.aiBotTotal,
         aiBotByService: logData.aiBotByService,

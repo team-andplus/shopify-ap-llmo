@@ -1,16 +1,27 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { Link, useLoaderData } from "react-router";
+import { Link, useLoaderData, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getLocaleFromRequest, getTranslations } from "../lib/i18n";
-import { readAndAggregateLlmoAccessLog, AI_BOT_PATTERNS } from "../lib/llmo-access-log.server";
+import { readAndAggregateLlmoAccessLog, AI_BOT_PATTERNS, type AggregatePeriod } from "../lib/llmo-access-log.server";
+
+const PERIODS: AggregatePeriod[] = ["7d", "30d", "90d", "all"];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop ?? "";
   const locale = getLocaleFromRequest(request);
-  const aggregates = await readAndAggregateLlmoAccessLog(shop);
+  const url = new URL(request.url);
+  const periodParam = url.searchParams.get("period");
+  const period: AggregatePeriod =
+    periodParam === "7d" || periodParam === "30d" || periodParam === "90d" || periodParam === "all"
+      ? periodParam
+      : "30d";
+  const [aggregates, aiVisibility7d] = await Promise.all([
+    readAndAggregateLlmoAccessLog(shop, period),
+    readAndAggregateLlmoAccessLog(shop, "7d"),
+  ]);
   const aiBotPatterns = AI_BOT_PATTERNS.map((b) => ({ name: b.name, service: b.service }));
-  return { aggregates, locale, t: getTranslations(locale), aiBotPatterns };
+  return { aggregates, aiVisibility7d, period, locale, t: getTranslations(locale), aiBotPatterns };
 };
 
 function sortByCount(entries: [string, number][]): [string, number][] {
@@ -26,9 +37,24 @@ const sectionStyle = {
   lineHeight: 1.6,
 } as const;
 
+function periodLabel(period: AggregatePeriod, t: ReturnType<typeof getTranslations>): string {
+  switch (period) {
+    case "7d": return t.accessLogPeriod7d;
+    case "30d": return t.accessLogPeriod30d;
+    case "90d": return t.accessLogPeriod90d;
+    default: return t.accessLogPeriodAll;
+  }
+}
+
 export default function AccessLogPage() {
-  const { aggregates, locale, t, aiBotPatterns } = useLoaderData<typeof loader>();
+  const [searchParams] = useSearchParams();
+  const { aggregates, aiVisibility7d, period, locale, t, aiBotPatterns } = useLoaderData<typeof loader>();
   const { total, byPath, byDate, recent, dateRange, recentMax, aiBotTotal, aiBotByService, aiBotByBot, aiBotRecent } = aggregates;
+  const link = (p: AggregatePeriod) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("period", p);
+    return `?${next.toString()}`;
+  };
 
   return (
     <div className="access-log-page" style={{ padding: "2rem", maxWidth: "960px", minWidth: 0 }}>
@@ -73,28 +99,29 @@ export default function AccessLogPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.25rem" }}>{t.accessLogTitle}</h1>
       <p style={{ color: "#6d7175", fontSize: "0.9375rem", marginBottom: "1.5rem" }}>{t.accessLogDesc}</p>
 
-      {/* AI Visibility サマリー（ホームと同じトーン） */}
+      {/* AI Visibility サマリー（直近7日間固定・ホームと同じ） */}
       <section
         style={{
           ...sectionStyle,
           marginTop: 0,
-          background: aiBotTotal > 0 ? "#e8f5e9" : "#f5f5f5",
-          borderLeft: aiBotTotal > 0 ? "4px solid #4caf50" : "4px solid #9e9e9e",
+          background: aiVisibility7d.aiBotTotal > 0 ? "#e8f5e9" : "#f5f5f5",
+          borderLeft: aiVisibility7d.aiBotTotal > 0 ? "4px solid #4caf50" : "4px solid #9e9e9e",
         }}
       >
-        <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.5rem", color: aiBotTotal > 0 ? "#2e7d32" : "#666" }}>
-          {aiBotTotal > 0 ? "🤖 " : ""}{t.aiVisibilityTitle}
+        <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.25rem", color: aiVisibility7d.aiBotTotal > 0 ? "#2e7d32" : "#666" }}>
+          {aiVisibility7d.aiBotTotal > 0 ? "🤖 " : ""}{t.aiVisibilityTitle}
         </h2>
-        {aiBotTotal > 0 ? (
+        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.75rem", color: "#6d7175" }}>{t.aiVisibilityLast7d}</p>
+        {aiVisibility7d.aiBotTotal > 0 ? (
           <>
             <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", color: "#2e7d32" }}>{t.aiVisibilityDesc}</p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.75rem" }}>
-              <span style={{ fontSize: "2rem", fontWeight: 700, color: "#2e7d32" }}>{aiBotTotal}</span>
+              <span style={{ fontSize: "2rem", fontWeight: 700, color: "#2e7d32" }}>{aiVisibility7d.aiBotTotal}</span>
               <span style={{ fontSize: "0.875rem", color: "#666" }}>{t.aiVisitsTotal}</span>
             </div>
-            {Object.entries(aiBotByService).length > 0 && (
+            {Object.entries(aiVisibility7d.aiBotByService).length > 0 && (
               <div style={{ marginBottom: "0" }}>
-                {sortByCount(Object.entries(aiBotByService))
+                {sortByCount(Object.entries(aiVisibility7d.aiBotByService))
                   .slice(0, 5)
                   .map(([service, count]) => (
                     <div
@@ -208,13 +235,34 @@ export default function AccessLogPage() {
           <p style={{ color: "#6d7175", margin: 0 }}>{t.accessLogNoData}</p>
         ) : (
           <>
-            <p style={{ fontSize: "1rem", marginBottom: "1rem" }}>
+            <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.5rem" }}>{t.accessLogPeriodLabel}</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+              {PERIODS.map((p) => (
+                <Link
+                  key={p}
+                  to={link(p)}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    borderRadius: "6px",
+                    fontSize: "0.875rem",
+                    textDecoration: "none",
+                    border: period === p ? "1px solid #2c6ecb" : "1px solid #e1e3e5",
+                    background: period === p ? "#2c6ecb" : "#fff",
+                    color: period === p ? "#fff" : "#202223",
+                  }}
+                >
+                  {periodLabel(p, t)}
+                </Link>
+              ))}
+            </div>
+
+            <p style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
               <strong>{t.totalRequests}:</strong> {total}
             </p>
 
             {dateRange && (
               <p style={{ fontSize: "0.8125rem", color: "#6d7175", marginBottom: "0.75rem" }}>
-                {t.accessLogDateRange}: {dateRange.min} ～ {dateRange.max}
+                {t.accessLogDateRange}: {dateRange.min} ～ {dateRange.max}（{periodLabel(period, t)}）
               </p>
             )}
 

@@ -128,12 +128,25 @@ const emptyAggregates: LlmoAccessLogAggregates = {
   aiBotRecent: [],
 };
 
+/** 集計期間: 直近7日 / 30日 / 90日 / 全期間 */
+export type AggregatePeriod = "7d" | "30d" | "90d" | "all";
+
+function getDateCutoff(period: AggregatePeriod): string | null {
+  if (period === "all") return null;
+  const d = new Date();
+  const n = period === "7d" ? 6 : period === "30d" ? 29 : 89;
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * ログファイルを読んで都度集計。ファイルが無い・空の場合は空の集計を返す。
  * shopFilter を渡すとそのストアの行だけ集計（管理画面用。未指定なら全件＝内部用）。
+ * period を渡すとその期間内の日付だけ集計（7d=直近7日, 30d=直近30日, 90d=直近90日, all=全期間）。
  */
 export async function readAndAggregateLlmoAccessLog(
-  shopFilter?: string | null
+  shopFilter?: string | null,
+  period: AggregatePeriod = "all"
 ): Promise<LlmoAccessLogAggregates> {
   const logPath = getLogPath();
   let raw: string;
@@ -159,6 +172,7 @@ export async function readAndAggregateLlmoAccessLog(
   let aiBotTotal = 0;
 
   const filterShop = shopFilter ?? undefined;
+  const dateCutoff = getDateCutoff(period);
 
   const lines = raw.split(/\n/).filter((s) => s.trim());
   for (const line of lines) {
@@ -173,6 +187,8 @@ export async function readAndAggregateLlmoAccessLog(
       if (filterShop !== undefined && shop !== filterShop) continue;
 
       const day = t.slice(0, 10);
+      if (dateCutoff !== null && day < dateCutoff) continue;
+
       byShop[shop] = (byShop[shop] ?? 0) + 1;
       byPath[path] = (byPath[path] ?? 0) + 1;
       byDate[day] = (byDate[day] ?? 0) + 1;
