@@ -179,6 +179,67 @@ const textareaStyle = {
 
 const labelStyle = { display: "block", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" };
 
+/** エラー表示を統一（背景・文字色・角丸・余白） */
+const errorBoxStyle = {
+  padding: "0.75rem 1rem",
+  marginTop: "0.75rem",
+  background: "#fef2f2",
+  color: "#b91c1c",
+  borderRadius: "8px",
+  fontSize: "0.875rem",
+  lineHeight: 1.5,
+} as const;
+
+/** 主操作（保存など） */
+const buttonPrimaryStyle = {
+  padding: "0.5rem 1rem",
+  borderRadius: "6px",
+  border: "1px solid #2c6ecb",
+  background: "#2c6ecb",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: "0.9375rem",
+} as const;
+/** 補助操作（プロンプト取得・コピー・再生成など） */
+const buttonSecondaryStyle = {
+  padding: "0.5rem 1rem",
+  borderRadius: "6px",
+  border: "1px solid #6d7175",
+  background: "#fff",
+  color: "#202223",
+  cursor: "pointer",
+  fontSize: "0.9375rem",
+} as const;
+/** AI実行・ファイル保存など「実行」系 */
+const buttonSuccessStyle = {
+  padding: "0.5rem 1rem",
+  borderRadius: "6px",
+  border: "1px solid #008060",
+  background: "#008060",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: "0.9375rem",
+} as const;
+/** 行追加など薄いアクション */
+const buttonGhostStyle = {
+  padding: "0.4rem 0.75rem",
+  borderRadius: "6px",
+  border: "1px dashed #6d7175",
+  background: "#fff",
+  color: "#6d7175",
+  cursor: "pointer",
+  fontSize: "0.875rem",
+} as const;
+/** 行削除など */
+const buttonDestructiveStyle = {
+  padding: "0.4rem 0.75rem",
+  borderRadius: "6px",
+  border: "1px solid #c9cccf",
+  background: "#fff",
+  cursor: "pointer",
+  fontSize: "0.8125rem",
+} as const;
+
 const emptyDocRow = (): DocsAiFileEntry => ({
   filename: "",
   content: "",
@@ -354,7 +415,7 @@ export default function AppSetup() {
       </section>
 
       {data.loaderError && (
-        <p style={{ padding: "1rem", marginBottom: "1rem", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px", fontSize: "0.9375rem" }}>
+        <p style={{ ...errorBoxStyle, marginTop: 0, marginBottom: "1rem" }}>
           {t.error}: {data.loaderError}
         </p>
       )}
@@ -532,7 +593,7 @@ export default function AppSetup() {
                   <button
                     type="button"
                     onClick={() => removeDocRow(i)}
-                    style={{ alignSelf: "flex-end", padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px solid #c9cccf", background: "#fff", cursor: "pointer", fontSize: "0.8125rem" }}
+                    style={{ ...buttonDestructiveStyle, alignSelf: "flex-end" }}
                   >
                     {t.removeRow}
                   </button>
@@ -553,11 +614,7 @@ export default function AppSetup() {
               </div>
             ))}
             {docsRows.length < MAX_DOCS_AI_ROWS && (
-              <button
-                type="button"
-                onClick={addDocRow}
-                style={{ padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px dashed #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#6d7175" }}
-              >
+              <button type="button" onClick={addDocRow} style={buttonGhostStyle}>
                 + {t.addRow}
               </button>
             )}
@@ -579,20 +636,20 @@ export default function AppSetup() {
           </label>
 
           {fetcher.data?.error && lastIntent === "generateLlmsTxt" && (
-            <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
-              {fetcher.data.error === "API_KEY_REQUIRED"
+            <p style={errorBoxStyle} role="alert">
+              {t.error}: {fetcher.data.error === "API_KEY_REQUIRED"
                 ? t.aiErrorNoKey
                 : fetcher.data.error === "GENERATE_FAILED"
                   ? fetcher.data.message
                     ? `${t.aiErrorFailed} ${fetcher.data.message}`
                     : t.aiErrorFailed
-                  : t.error}
+                  : fetcher.data.error}
             </p>
           )}
 
           {fetcher.data?.error && lastIntent === "refineLlmsTxt" && (
-            <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#b98900" }}>
-              {fetcher.data.error === "REFINE_BODY_EMPTY"
+            <p style={errorBoxStyle} role="alert">
+              {t.error}: {fetcher.data.error === "REFINE_BODY_EMPTY"
                 ? t.refineErrorBodyEmpty
                 : fetcher.data.error === "REFINE_NOTE_EMPTY"
                   ? t.refineErrorNoteEmpty
@@ -634,13 +691,13 @@ export default function AppSetup() {
                 fd.set("refinementNote", refinementNoteRef.current?.value ?? "");
                 fetcher.submit(fd, { method: "post" });
               }}
-              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: isRefining ? "wait" : "pointer", fontSize: "0.9375rem" }}
+              style={{ ...buttonSecondaryStyle, marginTop: "0.5rem", cursor: isRefining ? "wait" : "pointer" }}
             >
               {isRefining ? t.refining : t.refineButton}
             </button>
           </section>
 
-          <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"
               disabled={isSaving}
@@ -651,13 +708,13 @@ export default function AppSetup() {
                 fd.set("intent", "save");
                 fetcher.submit(fd, { method: "post" });
               }}
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #2c6ecb", background: "#2c6ecb", color: "#fff", cursor: isSaving ? "wait" : "pointer", fontSize: "0.9375rem" }}
+              style={{ ...buttonPrimaryStyle, cursor: isSaving ? "wait" : "pointer" }}
             >
               {isSaving ? t.saveSettingsLoading : t.saveSettings}
             </button>
             <button
               type="button"
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              style={buttonSecondaryStyle}
               onClick={() => {
                 const form = document.getElementById("llmo-form") as HTMLFormElement;
                 if (!form) return;
@@ -671,7 +728,7 @@ export default function AppSetup() {
             </button>
             <button
               type="button"
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              style={{ ...buttonSuccessStyle, cursor: isAiGenerating ? "wait" : "pointer" }}
               onClick={() => {
                 if (!data.settings.openaiApiKeySet) {
                   alert(t.aiErrorNoKey);
@@ -689,7 +746,7 @@ export default function AppSetup() {
             </button>
             <button
               type="button"
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: "pointer", fontSize: "0.9375rem" }}
+              style={buttonSuccessStyle}
               onClick={() => {
                 const body = llmsTxtBodyRef.current?.value?.trim() ?? "";
                 if (!body) {
@@ -719,7 +776,7 @@ export default function AppSetup() {
             id="copy-prompt-btn"
             type="button"
             onClick={copyPrompt}
-            style={{ marginTop: "0.5rem", padding: "0.4rem 0.75rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+            style={{ ...buttonSecondaryStyle, marginTop: "0.5rem", padding: "0.4rem 0.75rem", fontSize: "0.875rem" }}
           >
             {t.copy}
           </button>
@@ -731,7 +788,7 @@ export default function AppSetup() {
 
       {fileResult?.ok && <p style={{ marginTop: "1rem", color: "#008060", fontSize: "0.9375rem" }}>{t.fileSaved}</p>}
       {(fileResult && !fileResult.ok ? fileResult.error : anyFetcherError) && (
-        <p style={{ marginTop: "1rem", color: "#b98900", fontSize: "0.9375rem" }}>
+        <p style={errorBoxStyle} role="alert">
           {t.error}: {fileResult && !fileResult.ok ? fileResult.error : anyFetcherError}
         </p>
       )}
@@ -776,7 +833,7 @@ export default function AppSetup() {
             fetcher.submit(fd, { method: "post" });
           }}
           disabled={isGeneratingFullTxt}
-          style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isGeneratingFullTxt ? "wait" : "pointer", fontSize: "0.9375rem" }}
+          style={{ ...buttonSuccessStyle, cursor: isGeneratingFullTxt ? "wait" : "pointer" }}
         >
           {isGeneratingFullTxt ? t.generatingFullTxt : t.generateFullTxt}
         </button>
@@ -787,7 +844,7 @@ export default function AppSetup() {
           </p>
         )}
         {fullTxtResult && !fullTxtResult.ok && fullTxtResult.error && (
-          <p style={{ marginTop: "0.75rem", color: "#b91c1c", fontSize: "0.875rem" }}>
+          <p style={errorBoxStyle} role="alert">
             {t.error}: {fullTxtResult.error}
           </p>
         )}
@@ -820,7 +877,7 @@ export default function AppSetup() {
           placeholder={t.aiContextBodyPlaceholder}
         />
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem", alignItems: "center" }}>
           <button
             type="button"
             onClick={() => {
@@ -830,7 +887,7 @@ export default function AppSetup() {
               }
               fetcher.submit({ intent: "generateAiContext" }, { method: "post" });
             }}
-            style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isGeneratingAiContext ? "wait" : "pointer", fontSize: "0.9375rem", minWidth: 140 }}
+            style={{ ...buttonSuccessStyle, minWidth: 140, cursor: isGeneratingAiContext ? "wait" : "pointer" }}
             disabled={isAnyLoading}
           >
             {isGeneratingAiContext ? t.generatingAiContext : t.generateAiContext}
@@ -844,7 +901,7 @@ export default function AppSetup() {
               }
               fetcher.submit({ intent: "saveAiContext", aiContextBody }, { method: "post" });
             }}
-            style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #6d7175", background: "#fff", color: "#333", cursor: isSavingAiContext ? "wait" : "pointer", fontSize: "0.9375rem", minWidth: 140 }}
+            style={{ ...buttonSecondaryStyle, minWidth: 140, cursor: isSavingAiContext ? "wait" : "pointer" }}
             disabled={isAnyLoading || !aiContextBody.trim()}
           >
             {isSavingAiContext ? t.saveSettingsLoading : t.saveAiContext}
@@ -882,7 +939,7 @@ export default function AppSetup() {
                   { method: "post" }
                 );
               }}
-              style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid #008060", background: "#008060", color: "#fff", cursor: isRefiningAiContext ? "wait" : "pointer", fontSize: "0.9375rem", marginTop: "0.5rem" }}
+              style={{ ...buttonSuccessStyle, marginTop: "0.5rem", cursor: isRefiningAiContext ? "wait" : "pointer" }}
               disabled={isAnyLoading}
             >
               {isRefiningAiContext ? t.refining : t.refineAiContext}
@@ -896,7 +953,7 @@ export default function AppSetup() {
           </p>
         )}
         {aiContextSaveResult && !aiContextSaveResult.ok && aiContextSaveResult.error && (
-          <p style={{ marginTop: "0.75rem", color: "#b91c1c", fontSize: "0.875rem" }}>
+          <p style={errorBoxStyle} role="alert">
             {t.error}: {aiContextSaveResult.error}
           </p>
         )}
