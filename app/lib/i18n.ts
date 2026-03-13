@@ -11,7 +11,7 @@ export const translations = {
     appDesc: "AI 検索（ChatGPT、Perplexity など）にストアを最適化するアプリです。",
     appDescSub: "AI があなたのストアを正しく理解できるようにします。コーディング不要。",
     appHeroWhy:
-      "AI 検索（ChatGPT・Perplexity など）でストアが引用されるとき、正しい情報を渡すためのアプリです。",
+      "AI検索（ChatGPT・Perplexityなど）がストアを参照するとき、正しい一次情報を渡すためのAI対応ファイルを自動生成するアプリ。",
     appHeroHow:
       "llms.txt と .ai-context で一次情報と解釈ルールを AI に伝え、誇張・捏造を防ぎます。コーディング不要。",
     philosophyTitle: "このアプリの思想",
@@ -210,7 +210,7 @@ export const translations = {
     appDesc: "Optimize your store for AI search (ChatGPT, Perplexity, etc.)",
     appDescSub: "Help AI understand your Shopify store. No coding required.",
     appHeroWhy:
-      "When AI search (ChatGPT, Perplexity, etc.) cites your store, this app helps you serve correct information.",
+      "When AI search (ChatGPT, Perplexity, etc.) references your store, this app auto-generates AI-ready files so you can deliver correct first-party information.",
     appHeroHow:
       "Use llms.txt and .ai-context to give AI your first-party facts and interpretation rules—no coding required.",
     philosophyTitle: "This app's philosophy",
