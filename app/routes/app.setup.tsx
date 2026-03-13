@@ -920,13 +920,14 @@ export default function AppSetup() {
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>
             {data.locale === "ja" ? "このページの項目" : "Sections"}
           </h2>
-          <a href="#setup-flow" style={setupNavStyle}>{t.setupFlowTitle}</a>
-          <a href="#site-llms" style={setupNavStyle}>{t.llmsTxtSettings}</a>
-          <a href="#llms-full" style={setupNavStyle}>{t.llmsFullTxtSectionTitle}</a>
-          <a href="#ai-context" style={setupNavStyle}>{t.aiContextSectionTitle}</a>
+          <a href="#setup-flow" style={setupNavStyle}>{t.setupFlowTitle}（{t.navSetupFlowHint}）</a>
+          <a href="#site-llms" style={setupNavStyle}>{t.llmsTxtSettings}（{t.navLlmsTxtHint}）</a>
+          <a href="#llms-full" style={setupNavStyle}>{t.llmsFullTxtSectionTitle}（{t.navLlmsFullHint}）</a>
+          <a href="#ai-context" style={setupNavStyle}>{t.aiContextSectionTitle}（{t.navAiContextHint}）</a>
         </nav>
         <section style={{ ...asideSectionStyle, background: "#f9fafb", borderLeft: "3px solid #2c6ecb" }}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.5rem" }}>{t.refExampleTitle}</h2>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "0.25rem" }}>{t.refExampleTitle}</h2>
+          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.75rem", color: "#6d7175", lineHeight: 1.5 }}>{t.refExampleNote}</p>
           <ul style={{ ...listStyle, margin: 0, fontSize: "0.8125rem", lineHeight: 1.8 }}>
             <li><a href="https://www.andplus.co.jp/llms.txt" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusLlmsRef}</a></li>
             <li><a href="https://www.andplus.co.jp/docs/ai/README.md" target="_blank" rel="noopener noreferrer" style={{ color: "#2c6ecb", textDecoration: "underline" }}>{t.andplusDocsAiRef}</a></li>
