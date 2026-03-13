@@ -63,10 +63,10 @@ export default function AppLayout() {
 
   const nav = (
     <s-app-nav>
-      <Link to={`/app${search}`} rel="home">{t.navHome}</Link>
-      <Link to={`/app/setup${search}`}>{t.navSetup}</Link>
-      <Link to={`/app/access-log${search}`}>{t.navAiVisibility}</Link>
-      <Link to={`/app/billing${search}`}>{t.navBilling}</Link>
+      <Link to={`/app${search}`} rel="home" prefetch="intent">{t.navHome}</Link>
+      <Link to={`/app/setup${search}`} prefetch="intent">{t.navSetup}</Link>
+      <Link to={`/app/access-log${search}`} prefetch="intent">{t.navAiVisibility}</Link>
+      <Link to={`/app/billing${search}`} prefetch="intent">{t.navBilling}</Link>
     </s-app-nav>
   );
 
