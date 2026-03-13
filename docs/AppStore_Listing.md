@@ -109,7 +109,7 @@ Includes all features. No hidden fees.
 
 ---
 
-Built by ANDPLUS Inc. - Experts in Shopify and AI integration.
+Built by Andplus Co. Ltd. - Experts in Shopify and AI integration.
 ```
 
 ---

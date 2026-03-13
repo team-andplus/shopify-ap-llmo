@@ -214,5 +214,5 @@ shopify-ap-llmo/
 
 ## ライセンス・お問い合わせ
 
-- **開発**: ANDPLUS Inc.
+- **開発**: 株式会社あんどぷらす (Andplus Co. Ltd.)
 - **お問い合わせ**: https://www.andplus.co.jp/contact

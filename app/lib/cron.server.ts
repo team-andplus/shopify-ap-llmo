@@ -293,7 +293,9 @@ function generateReportHtml(shop: string, stats: WeeklyStats, isJa: boolean): st
     path: "パス",
     noAccess: "アクセスなし",
     footer1: "このメールは AP LLMO (AI 文書管理アプリ) から自動送信されています。",
-    footer2: "レポート設定はアプリ管理画面から変更できます。",
+    footer2: "受信のオン/オフや送信先はアプリのメイン画面で変更できます。",
+    footer3: '開発元: <a href="https://www.andplus.co.jp/">株式会社あんどぷらす</a>',
+    footer4: '問合せ: <a href="https://www.andplus.co.jp/contact/work/">https://www.andplus.co.jp/contact/work/</a>',
   } : {
     title: "📊 Weekly AI Access Report",
     store: "Store",
@@ -309,7 +311,9 @@ function generateReportHtml(shop: string, stats: WeeklyStats, isJa: boolean): st
     path: "Path",
     noAccess: "No access",
     footer1: "This email is automatically sent by AP LLMO (AI Document Management App).",
-    footer2: "You can change report settings in the app dashboard.",
+    footer2: "You can turn this report on/off or change the email address on the app's main screen.",
+    footer3: 'Developed by <a href="https://www.andplus.co.jp/">Andplus Co. Ltd.</a>',
+    footer4: 'Contact: <a href="https://www.andplus.co.jp/contact/work/">https://www.andplus.co.jp/contact/work/</a>',
   };
 
   const botRows = Object.entries(stats.byBot)
@@ -374,6 +378,8 @@ function generateReportHtml(shop: string, stats: WeeklyStats, isJa: boolean): st
   <div class="footer">
     <p>${t.footer1}</p>
     <p>${t.footer2}</p>
+    <p>${t.footer3}</p>
+    <p>${t.footer4}</p>
   </div>
 </body>
 </html>
