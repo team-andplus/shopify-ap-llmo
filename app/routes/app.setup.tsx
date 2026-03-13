@@ -163,7 +163,7 @@ const listStyle = { margin: 0, paddingLeft: "1.25rem" } as const;
 const inputStyle = {
   display: "block",
   width: "100%",
-  maxWidth: "400px",
+  maxWidth: "480px",
   marginTop: "0.25rem",
   padding: "0.5rem 0.75rem",
   border: "1px solid #c9cccf",
@@ -173,10 +173,9 @@ const inputStyle = {
 
 const textareaStyle = {
   ...inputStyle,
-  maxWidth: "calc(100% - 1.5rem)",
-  minHeight: "120px",
+  minHeight: "140px",
   resize: "vertical" as const,
-};
+} as const;
 
 const labelStyle = { display: "block", marginTop: "1rem", fontWeight: 600, fontSize: "0.875rem" };
 
@@ -542,7 +541,7 @@ export default function AppSetup() {
                   {t.docsAiContent}
                   <textarea
                     name={`docsAiContent_${i}`}
-                    style={{ ...textareaStyle, minHeight: "80px" }}
+                    style={textareaStyle}
                     defaultValue={row.content}
                   />
                 </label>
@@ -573,7 +572,7 @@ export default function AppSetup() {
               ref={llmsTxtBodyRef}
               name="llmsTxtBody"
               form="llmo-form"
-              style={{ ...textareaStyle, minHeight: "200px", marginTop: "0.5rem" }}
+              style={textareaStyle}
               defaultValue={data.settings.llmsTxtBody}
               placeholder={t.llmsTxtBodyPlaceholder}
             />
@@ -619,7 +618,7 @@ export default function AppSetup() {
               <input
                 ref={refinementNoteRef}
                 type="text"
-                style={{ ...inputStyle, maxWidth: "calc(100% - 1.5rem)" }}
+                style={inputStyle}
                 placeholder={t.refinementNotePlaceholder}
                 disabled={isRefining}
               />
@@ -817,7 +816,7 @@ export default function AppSetup() {
           value={aiContextBody}
           onChange={(e) => setAiContextBody(e.target.value)}
           rows={12}
-          style={inputStyle}
+          style={textareaStyle}
           placeholder={t.aiContextBodyPlaceholder}
         />
 
@@ -860,7 +859,7 @@ export default function AppSetup() {
               value={aiContextRefinementNote}
               onChange={(e) => setAiContextRefinementNote(e.target.value)}
               rows={3}
-              style={inputStyle}
+              style={textareaStyle}
               placeholder={t.refinementNotePlaceholder}
             />
             <button

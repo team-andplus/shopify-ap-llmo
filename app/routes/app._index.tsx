@@ -263,7 +263,7 @@ const listStyle = { margin: 0, paddingLeft: "1.25rem" } as const;
 const inputStyle = {
   display: "block",
   width: "100%",
-  maxWidth: "400px",
+  maxWidth: "480px",
   marginTop: "0.25rem",
   padding: "0.5rem 0.75rem",
   border: "1px solid #c9cccf",
@@ -588,7 +588,6 @@ export default function AppIndex() {
                 placeholder="you@example.com"
                 style={{
                   ...inputStyle,
-                  maxWidth: "280px",
                   marginTop: "0.25rem",
                 }}
               />
