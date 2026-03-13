@@ -142,12 +142,13 @@ export default function AppLayout() {
   const searchEn = new URLSearchParams(location.search);
   searchEn.set("locale", "en");
 
+  const base = APP_PATH || "";
   const nav = (
     <s-app-nav>
-      <Link to={`/app${search}`} rel="home" prefetch="intent">{t.navHome}</Link>
-      <Link to={`/app/setup${search}`} prefetch="intent">{t.navSetup}</Link>
-      <Link to={`/app/access-log${search}`} prefetch="intent">{t.navAiVisibility}</Link>
-      <Link to={`/app/billing${search}`} prefetch="intent">{t.navBilling}</Link>
+      <a href={`${base}/app${search}`} rel="home">{t.navHome}</a>
+      <a href={`${base}/app/setup${search}`}>{t.navSetup}</a>
+      <a href={`${base}/app/access-log${search}`}>{t.navAiVisibility}</a>
+      <a href={`${base}/app/billing${search}`}>{t.navBilling}</a>
     </s-app-nav>
   );
 
