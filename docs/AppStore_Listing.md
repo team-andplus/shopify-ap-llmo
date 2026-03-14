@@ -116,6 +116,8 @@ Built by Andplus Co. Ltd. - Experts in Shopify and AI integration.
 
 ## スクリーンショット構成
 
+**画像サイズ: 1600×900 px（申請時のアップロードで必須。違うサイズはエラーになる）**
+
 | # | 画面 | キャプション（英語） | キャプション（日本語） |
 |---|------|---------------------|----------------------|
 | 1 | **llms.txt Editor** | "Create AI-friendly store description" | "AI 向けストア説明を作成" |
